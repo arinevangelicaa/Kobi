@@ -5,4 +5,4 @@ dan menemukan menu bergizi dengan anggaran terbatas dari warung, kaki lima, dan 
 Kelompok Kibo  
 Ketua Kelompok:  
 Anggota 1:  
-Anggota 2:  
+Anggota 2: Rida Larasati - 24/539400/TK/59821  
