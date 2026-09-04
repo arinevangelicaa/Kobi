@@ -4,5 +4,5 @@ dan menemukan menu bergizi dengan anggaran terbatas dari warung, kaki lima, dan 
 
 Kelompok Kibo  
 Ketua Kelompok:  Adnan Abdul Majid - 24/544058/TK/60471
-Anggota 1:  
-Anggota 2: Rida Larasati - 24/539400/TK/59821  
+- Anggota 1: Arin Evangelica Patabang - 24/539400/TK/59821
+- Anggota 2: Rida Larasati - 24/539400/TK/59821  
