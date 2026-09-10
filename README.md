@@ -87,16 +87,59 @@ Analisis kompetitor lengkap: [docs/brainstorm.md](docs/brainstorm.md)
 | Azure AI Document Intelligence | OCR struk tulisan tangan warung untuk fitur split bill | S1 (stretch) |
 | Azure AI Vision/Custom Vision | Pengenalan foto makanan otomatis | Roadmap v2 |
 
-Framework backend belum ditetapkan; kandidat Node.js/Express atau Python/FastAPI sesuai preferensi tim. Detail: [docs/architecture.md](docs/architecture.md)
+### Tech Stack
+
+| Lapisan | Pilihan |
+|---|---|
+| Bentuk produk | Web app responsif, dioptimalkan untuk browser ponsel |
+| Frontend | Next.js 16 (App Router) + TypeScript + Tailwind CSS |
+| Backend | Route Handlers Next.js, satu repo dengan frontend |
+| Basis data | Azure Database for PostgreSQL Flexible Server + Prisma |
+| Autentikasi | Auth.js (NextAuth), email/password + Google |
+| Hosting | Azure App Service (Linux, Node 22) + GitHub Actions |
+
+Detail arsitektur, kontrak API, skema kolom, dan algoritma: [docs/architecture.md](docs/architecture.md)
+
+## Menjalankan Secara Lokal
+
+Butuh Node.js 22 atau lebih baru dan PostgreSQL.
+
+```bash
+npm install                    # sekaligus mengaktifkan git hook repo
+cp .env.example .env.local     # isi DATABASE_URL dan kunci layanan Azure
+npm run db:generate            # Prisma Client tidak ikut di repo
+npm run db:migrate             # membuat tabel di basis data lokal
+npm run dev                    # http://localhost:3000
+```
+
+### Aturan Commit
+
+Pesan commit hanya satu baris subjek, tanpa body dan tanpa trailer atribusi.
+Aturan ini ditegakkan oleh [.githooks/commit-msg](.githooks/commit-msg).
+
+`npm install` menjalankan `git config core.hooksPath .githooks` lewat skrip
+`prepare`. Kalau melewatkan `npm install`, aktifkan manual:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Perintah lain: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
+
+Setiap push dan pull request ke `main` menjalankan lint, typecheck, test, dan build lewat
+[.github/workflows/ci.yml](.github/workflows/ci.yml). Workflow deploy belum dibuat, menunggu
+resource Azure disiapkan.
 
 ## Skema Data
 
-| Koleksi | Field utama | Keterangan |
-|---|---|---|
-| users | id, nama, jadwal_kuliah, preferensi_anggaran | Data dasar pengguna |
-| meal_logs | id, user_id, teks_input, estimasi_gizi, vendor_id (opsional), waktu | Riwayat catatan makan |
-| vendors | id, nama_warung, lokasi, daftar_menu, estimasi_harga | Basis data vendor lokal, diisi manual untuk MVP |
-| checkins | id, user_id, meal_log_id, tingkat_energi, tingkat_fokus, waktu | Data check-in setelah makan |
+12 tabel relasional. Diagram lengkap: [docs/erd.drawio](docs/erd.drawio) — tipe kolom dan index ada di [docs/architecture.md](docs/architecture.md).
+
+| Kelompok | Tabel |
+|---|---|
+| Pengguna dan jadwal | `users`, `class_schedules`, `nutrition_targets` |
+| Pencatatan makan | `meal_logs`, `nutrition_estimates`, `checkins` |
+| Vendor dan rekomendasi | `vendors`, `menu_items`, `recommendations` |
+| Split bill (stretch) | `receipts`, `receipt_items`, `bill_shares` |
 
 ## Alur Pengguna Utama
 

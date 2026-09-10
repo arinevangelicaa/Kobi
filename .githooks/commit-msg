@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Aturan pesan commit repo Kobi:
+#   1. Hanya baris subjek. Tanpa body.
+#   2. Tanpa trailer atribusi (Co-Authored-By, Claude-Session, dan sejenisnya).
+#
+# Berlaku untuk semua orang dan semua alat, bukan hanya asisten AI.
+# Aktifkan sekali per clone:  git config core.hooksPath .githooks
+# (`npm install` sudah menjalankannya lewat skrip prepare.)
+set -uo pipefail
+
+berkas_pesan="$1"
+git_dir=$(git rev-parse --git-dir)
+
+# Merge dan revert menghasilkan body otomatis dari git sendiri. Lewati.
+if [ -f "$git_dir/MERGE_HEAD" ] || [ -f "$git_dir/REVERT_HEAD" ]; then
+  exit 0
+fi
+
+# Buang baris komentar dan spasi di ujung baris.
+pesan=$(grep -v '^#' "$berkas_pesan" | sed -e 's/[[:space:]]*$//')
+subjek=$(printf '%s\n' "$pesan" | sed -n '1p')
+
+# fixup!/squash!/amend! dibuat git saat rebase interaktif. Lewati.
+case "$subjek" in
+  fixup!*|squash!*|amend!*) exit 0 ;;
+esac
+
+tolak() {
+  echo "commit-msg ditolak: $1" >&2
+  echo "" >&2
+  echo "Aturan repo Kobi: pesan commit hanya satu baris subjek, tanpa body," >&2
+  echo "tanpa trailer atribusi." >&2
+  echo "" >&2
+  echo "Contoh benar:" >&2
+  echo "  git commit -m \"feat: tambah endpoint rekomendasi\"" >&2
+  exit 1
+}
+
+if [ -z "$subjek" ]; then
+  tolak "pesan commit kosong."
+fi
+
+if printf '%s\n' "$pesan" | grep -qiE '^[[:space:]]*co-authored-by:'; then
+  tolak "ditemukan trailer Co-Authored-By."
+fi
+
+if printf '%s\n' "$pesan" | grep -qiE '^[[:space:]]*claude-session:'; then
+  tolak "ditemukan trailer Claude-Session."
+fi
+
+if printf '%s\n' "$pesan" | grep -qiE 'generated with .*claude|🤖'; then
+  tolak "ditemukan baris atribusi Claude."
+fi
+
+# Baris apa pun setelah subjek berarti ada body.
+if printf '%s\n' "$pesan" | sed '1d' | grep -q '[^[:space:]]'; then
+  tolak "ditemukan body. Ringkas jadi satu baris subjek."
+fi
+
+exit 0
