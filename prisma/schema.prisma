@@ -1,0 +1,229 @@
+// Skema Kobi.
+// Nama tabel dan kolom sengaja dibuat identik dengan docs/erd.drawio dan
+// docs/architecture.md bagian 7, supaya dokumen dan kode tidak berbeda istilah.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------- pengguna
+
+model User {
+  id                  String   @id @default(uuid()) @db.Uuid
+  email               String   @unique
+  password_hash       String?
+  nama                String
+  tanggal_lahir       DateTime? @db.Date
+  jenis_kelamin       String?
+  berat_badan_kg      Decimal? @db.Decimal(5, 2)
+  tinggi_badan_cm     Decimal? @db.Decimal(5, 2)
+  preferensi_anggaran Int?
+  dibuat_pada         DateTime @default(now()) @db.Timestamptz(6)
+
+  class_schedules    ClassSchedule[]
+  nutrition_targets  NutritionTarget[]
+  meal_logs          MealLog[]
+  checkins           Checkin[]
+  recommendations    Recommendation[]
+  receipts           Receipt[]
+  bill_shares        BillShare[]
+
+  @@map("users")
+}
+
+model ClassSchedule {
+  id           String   @id @default(uuid()) @db.Uuid
+  user_id      String   @db.Uuid
+  mata_kuliah  String
+  hari         Int      @db.SmallInt // 1 = Senin .. 7 = Minggu
+  jam_mulai    DateTime @db.Time(6)
+  jam_selesai  DateTime @db.Time(6)
+  lokasi_ruang String?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, hari])
+  @@map("class_schedules")
+}
+
+model NutritionTarget {
+  id                   String   @id @default(uuid()) @db.Uuid
+  user_id              String   @db.Uuid
+  kalori_target        Int
+  protein_target_g     Decimal  @db.Decimal(6, 2)
+  karbohidrat_target_g Decimal  @db.Decimal(6, 2)
+  lemak_target_g       Decimal  @db.Decimal(6, 2)
+  zat_besi_target_mg   Decimal  @db.Decimal(6, 2)
+  berlaku_sejak        DateTime @db.Date
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, berlaku_sejak])
+  @@map("nutrition_targets")
+}
+
+// ----------------------------------------------------------- catatan makan
+
+model MealLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  user_id        String   @db.Uuid
+  vendor_id      String?  @db.Uuid
+  teks_input     String
+  sumber_makanan String?
+  total_harga    Int?
+  waktu_makan    DateTime @db.Timestamptz(6)
+  dibuat_pada    DateTime @default(now()) @db.Timestamptz(6)
+
+  user               User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  vendor             Vendor?             @relation(fields: [vendor_id], references: [id], onDelete: SetNull)
+  nutrition_estimate NutritionEstimate?
+  checkin            Checkin?
+
+  @@index([user_id, waktu_makan(sort: Desc)])
+  @@map("meal_logs")
+}
+
+model NutritionEstimate {
+  id                String   @id @default(uuid()) @db.Uuid
+  meal_log_id       String   @unique @db.Uuid
+  kalori_estimasi   Int
+  protein_g         Decimal  @db.Decimal(6, 2)
+  karbohidrat_g     Decimal  @db.Decimal(6, 2)
+  lemak_g           Decimal  @db.Decimal(6, 2)
+  zat_besi_mg       Decimal  @db.Decimal(6, 2)
+  tingkat_keyakinan Decimal  @db.Decimal(3, 2)
+  model_versi       String
+  dibuat_pada       DateTime @default(now()) @db.Timestamptz(6)
+
+  meal_log MealLog @relation(fields: [meal_log_id], references: [id], onDelete: Cascade)
+
+  @@map("nutrition_estimates")
+}
+
+model Checkin {
+  id             String   @id @default(uuid()) @db.Uuid
+  user_id        String   @db.Uuid
+  meal_log_id    String   @unique @db.Uuid
+  tingkat_energi Int      @db.SmallInt // 1..5
+  tingkat_fokus  Int      @db.SmallInt // 1..5
+  catatan        String?
+  waktu          DateTime @default(now()) @db.Timestamptz(6)
+
+  user     User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  meal_log MealLog @relation(fields: [meal_log_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, waktu(sort: Desc)])
+  @@map("checkins")
+}
+
+// -------------------------------------------------------- vendor dan menu
+
+model Vendor {
+  id                String    @id @default(uuid()) @db.Uuid
+  nama_warung       String
+  jenis_vendor      String?
+  alamat            String?
+  latitude          Decimal?  @db.Decimal(9, 6)
+  longitude         Decimal?  @db.Decimal(9, 6)
+  jam_buka          DateTime? @db.Time(6)
+  jam_tutup         DateTime? @db.Time(6)
+  diverifikasi_pada DateTime? @db.Date
+
+  menu_items      MenuItem[]
+  meal_logs       MealLog[]
+  recommendations Recommendation[]
+  receipts        Receipt[]
+
+  @@index([latitude, longitude])
+  @@map("vendors")
+}
+
+model MenuItem {
+  id                 String  @id @default(uuid()) @db.Uuid
+  vendor_id          String  @db.Uuid
+  nama_menu          String
+  estimasi_harga     Int
+  estimasi_kalori    Int?
+  estimasi_protein_g Decimal? @db.Decimal(6, 2)
+  tersedia           Boolean @default(true)
+
+  vendor          Vendor           @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
+  recommendations Recommendation[]
+
+  @@index([vendor_id, estimasi_harga])
+  @@map("menu_items")
+}
+
+model Recommendation {
+  id               String   @id @default(uuid()) @db.Uuid
+  user_id          String   @db.Uuid
+  menu_item_id     String   @db.Uuid
+  vendor_id        String   @db.Uuid
+  gizi_disasar     String
+  batas_anggaran   Int
+  sela_waktu_menit Int
+  jarak_meter      Int?
+  status           String   @default("ditampilkan")
+  waktu_dibuat     DateTime @default(now()) @db.Timestamptz(6)
+
+  user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  menu_item MenuItem @relation(fields: [menu_item_id], references: [id], onDelete: Cascade)
+  vendor    Vendor   @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, waktu_dibuat(sort: Desc)])
+  @@map("recommendations")
+}
+
+// ------------------------------------------------- split bill (S1, stretch)
+
+model Receipt {
+  id            String   @id @default(uuid()) @db.Uuid
+  user_id       String   @db.Uuid
+  vendor_id     String?  @db.Uuid
+  url_gambar    String
+  total_tagihan Int?
+  status_ocr    String   @default("menunggu")
+  waktu_unggah  DateTime @default(now()) @db.Timestamptz(6)
+
+  user          User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  vendor        Vendor?       @relation(fields: [vendor_id], references: [id], onDelete: SetNull)
+  receipt_items ReceiptItem[]
+
+  @@index([user_id, waktu_unggah(sort: Desc)])
+  @@map("receipts")
+}
+
+model ReceiptItem {
+  id           String @id @default(uuid()) @db.Uuid
+  receipt_id   String @db.Uuid
+  nama_item    String
+  jumlah       Int    @default(1)
+  harga_satuan Int
+  subtotal     Int
+
+  receipt     Receipt     @relation(fields: [receipt_id], references: [id], onDelete: Cascade)
+  bill_shares BillShare[]
+
+  @@index([receipt_id])
+  @@map("receipt_items")
+}
+
+model BillShare {
+  id              String  @id @default(uuid()) @db.Uuid
+  receipt_item_id String  @db.Uuid
+  user_id         String  @db.Uuid
+  porsi           Decimal @db.Decimal(4, 2)
+  jumlah_bayar    Int
+  status_bayar    String  @default("belum")
+
+  receipt_item ReceiptItem @relation(fields: [receipt_item_id], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([receipt_item_id, user_id])
+  @@map("bill_shares")
+}
