@@ -105,11 +105,23 @@ Detail arsitektur, kontrak API, skema kolom, dan algoritma: [docs/architecture.m
 Butuh Node.js 22 atau lebih baru dan PostgreSQL.
 
 ```bash
-npm install
+npm install                    # sekaligus mengaktifkan git hook repo
 cp .env.example .env.local     # isi DATABASE_URL dan kunci layanan Azure
 npm run db:generate            # Prisma Client tidak ikut di repo
 npm run db:migrate             # membuat tabel di basis data lokal
 npm run dev                    # http://localhost:3000
+```
+
+### Aturan Commit
+
+Pesan commit hanya satu baris subjek, tanpa body dan tanpa trailer atribusi.
+Aturan ini ditegakkan oleh [.githooks/commit-msg](.githooks/commit-msg).
+
+`npm install` menjalankan `git config core.hooksPath .githooks` lewat skrip
+`prepare`. Kalau melewatkan `npm install`, aktifkan manual:
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 Perintah lain: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
