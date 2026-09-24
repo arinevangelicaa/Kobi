@@ -106,7 +106,7 @@ Butuh Node.js 22 atau lebih baru dan PostgreSQL.
 
 ```bash
 npm install                    # sekaligus mengaktifkan git hook repo
-cp .env.example .env.local     # isi DATABASE_URL dan kunci layanan Azure
+cp .env.example .env            # isi DATABASE_URL dan kunci layanan Azure
 npm run db:generate            # Prisma Client tidak ikut di repo
 npm run db:migrate             # membuat tabel di basis data lokal
 npm run dev                    # http://localhost:3000

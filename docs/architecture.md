@@ -619,7 +619,7 @@ Workflow deploy sengaja ditunda sampai resource Azure benar-benar ada. Menambahk
 
 **Pengembangan lokal**
 
-PostgreSQL lewat Docker, lalu salin `.env.example` menjadi `.env.local` dan isi nilainya. Jalankan `npm run db:generate` sekali setelah clone, karena Prisma Client tidak ikut di repo.
+PostgreSQL lewat Docker, lalu salin `.env.example` menjadi `.env` dan isi nilainya (Prisma CLI hanya membaca `.env`, bukan `.env.local`). Jalankan `npm run db:generate` sekali setelah clone, karena Prisma Client tidak ikut di repo.
 
 ## 15. Observability dan Error Handling
 
