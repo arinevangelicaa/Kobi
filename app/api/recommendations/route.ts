@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 
+import { hitungJarakWaktuBanyakTujuan } from "@/lib/azure/maps";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { hitungKesenjangan, jumlahkanAsupan, type EstimasiGizi, type Kesenjangan } from "@/lib/services/nutrition-gap";
-import { dapatkanRekomendasiMenu, type MenuItemInfo, type VendorInfo } from "@/lib/services/recommendation";
+import {
+  apakahWarungBuka,
+  dapatkanRekomendasiMenu,
+  type MenuItemInfo,
+  type VendorInfo,
+} from "@/lib/services/recommendation";
 import { recommendationQuerySchema } from "@/lib/validation/recommendation";
 
 function errorResponse(status: number, code: string, message: string) {
@@ -123,20 +129,30 @@ export async function POST(request: Request) {
     }
   }
 
+  const lokasiPengguna = { latitude: data.latitude, longitude: data.longitude };
+  const waktuSekarang = data.waktu ? new Date(data.waktu) : new Date();
+
+  // Azure Maps (docs/architecture.md bagian 11 langkah 1-3): panggil hanya
+  // untuk vendor yang sedang buka, satu kali permintaan untuk semuanya
+  // sekaligus (bukan satu per vendor) supaya hemat kuota.
+  const vendorBuka = vendors.filter((v) => apakahWarungBuka(v.jam_buka, v.jam_tutup, waktuSekarang));
+  const jarakAktual = await hitungJarakWaktuBanyakTujuan(
+    lokasiPengguna,
+    vendorBuka.map((v) => ({ id: v.id, latitude: v.latitude, longitude: v.longitude })),
+  );
+
   const rekomendasi = dapatkanRekomendasiMenu(
     vendors,
     menuItems,
     {
-      lokasiPengguna: {
-        latitude: data.latitude,
-        longitude: data.longitude,
-      },
+      lokasiPengguna,
       batas_anggaran: data.batas_anggaran,
       sela_waktu_menit: data.sela_waktu_menit,
-      waktuSekarang: data.waktu ? new Date(data.waktu) : new Date(),
+      waktuSekarang,
       kesenjanganGizi,
       kecepatanTempuhKmJam: data.kecepatan_km_jam ?? 15,
       durasiMakanMenit: data.durasi_makan_menit ?? 25,
+      jarakAktual,
     },
     data.jumlah,
   );

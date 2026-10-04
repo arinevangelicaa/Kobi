@@ -42,6 +42,14 @@ export interface KriteriaRekomendasi {
   kesenjanganGizi?: readonly Kesenjangan[]; // Hasil hitung dari nutrition-gap.ts
   kecepatanTempuhKmJam?: number; // Rata-rata mobilitas (default 15 km/jam untuk area kampus)
   durasiMakanMenit?: number; // Estimasi waktu pesan + santap (default 25 menit)
+  /**
+   * Jarak dan waktu tempuh sungguhan per vendor_id dari Azure Maps (lihat
+   * lib/azure/maps.ts dan docs/architecture.md bagian 11 langkah 3). Vendor
+   * yang tidak ada di sini (Azure Maps belum terprovisioning, API gagal,
+   * atau vendor tidak termasuk yang dihitung) jatuh kembali ke estimasi
+   * jarak garis lurus (Haversine) -- ditandai lewat `sumber_jarak` di hasil.
+   */
+  jarakAktual?: ReadonlyMap<string, { jarakMeter: number; waktuTempuhMenit: number }>;
 }
 
 export interface RekomendasiMenu {
@@ -57,6 +65,8 @@ export interface RekomendasiMenu {
   skor: number;
   gizi_disasar: string;
   alasan: string;
+  /** "azure_maps" = jarak/waktu nyata; "estimasi" = garis lurus (Haversine). */
+  sumber_jarak: "azure_maps" | "estimasi";
 }
 
 /**
@@ -219,6 +229,7 @@ export function dapatkanRekomendasiMenu(
     jarakMeter: number;
     waktuTempuhSatuArah: number;
     totalWaktu: number;
+    sumberJarak: "azure_maps" | "estimasi";
   }> = [];
 
   for (const menu of menuItems) {
@@ -236,13 +247,20 @@ export function dapatkanRekomendasiMenu(
       continue;
     }
 
-    // Saring jarak dan waktu tempuh
-    const jarakMeter = hitungJarakHaversine(kriteria.lokasiPengguna, {
-      latitude: vendor.latitude,
-      longitude: vendor.longitude,
-    });
+    // Saring jarak dan waktu tempuh. Pakai hasil Azure Maps sungguhan jika
+    // ada (lib/azure/maps.ts), jatuh ke estimasi garis lurus jika tidak --
+    // lihat docs/architecture.md bagian 11 langkah 3 dan bagian 15.
+    const nyata = kriteria.jarakAktual?.get(vendor.id);
+    const sumberJarak: "azure_maps" | "estimasi" = nyata ? "azure_maps" : "estimasi";
 
-    const waktuTempuhSatuArah = hitungWaktuTempuhMenit(jarakMeter, kecepatan);
+    const jarakMeter =
+      nyata?.jarakMeter ??
+      hitungJarakHaversine(kriteria.lokasiPengguna, {
+        latitude: vendor.latitude,
+        longitude: vendor.longitude,
+      });
+
+    const waktuTempuhSatuArah = nyata?.waktuTempuhMenit ?? hitungWaktuTempuhMenit(jarakMeter, kecepatan);
     // Waktu pulang pergi + waktu makan
     const totalWaktu = waktuTempuhSatuArah * 2 + durasiMakan;
 
@@ -257,6 +275,7 @@ export function dapatkanRekomendasiMenu(
       jarakMeter,
       waktuTempuhSatuArah,
       totalWaktu,
+      sumberJarak,
     });
   }
 
@@ -307,6 +326,7 @@ export function dapatkanRekomendasiMenu(
         protein,
         item.menu.estimasi_harga,
       ),
+      sumber_jarak: item.sumberJarak,
     };
   });
 
