@@ -373,7 +373,7 @@ Index: `(vendor_id, estimasi_harga)`.
 | gizi_disasar | text | Zat gizi yang hendak ditutup, contoh: protein |
 | batas_anggaran | integer | |
 | sela_waktu_menit | integer | |
-| jarak_meter | integer | Dari Azure Maps |
+| jarak_meter | integer | Dari Azure Maps, atau estimasi garis lurus (Haversine) bila Azure Maps belum terprovisioning atau gagal dipanggil |
 | status | text | ditampilkan / diterima / diabaikan |
 | waktu_dibuat | timestamptz, default now() | |
 
@@ -541,7 +541,7 @@ Tahapan berurutan, dari yang paling murah secara komputasi:
 
 1. **Saring lokasi.** Ambil vendor dalam kotak koordinat sekitar pengguna langsung dari basis data. Menghindari pemanggilan Azure Maps untuk vendor yang jelas terlalu jauh.
 2. **Saring jam buka.** Buang vendor yang menurut `jam_buka`/`jam_tutup` sedang tutup. Karena jam operasional informal tidak tetap, hasilnya ditandai sebagai perkiraan.
-3. **Hitung jarak.** Azure Maps menghitung jarak dan waktu tempuh untuk kandidat yang tersisa.
+3. **Hitung jarak.** Azure Maps Matrix Routing menghitung jarak dan waktu tempuh untuk seluruh kandidat yang masih buka dalam satu panggilan (bukan satu panggilan per vendor), moda motor (`motorcycle`). Hasil per pasangan (lokasi pengguna dibulatkan, vendor) di-cache 5 menit. Vendor yang gagal dihitung (kunci belum diset, API gagal, atau timeout) jatuh kembali ke estimasi Haversine; respons menandai sumber lewat field `sumber_jarak` (`azure_maps` / `estimasi`) di setiap rekomendasi, supaya antarmuka bisa menampilkan "perkiraan kasar" saat perlu.
 4. **Saring waktu.** Buang vendor yang waktu tempuh pulang-pergi ditambah perkiraan waktu makan melebihi `sela_waktu_menit`.
 5. **Saring anggaran.** Ambil `menu_items` dengan `estimasi_harga` di bawah `batas_anggaran` dan `tersedia = true`.
 6. **Beri skor.** Setiap menu dinilai atas tiga hal: seberapa besar menutup gap gizi terbesar, sisa anggaran setelah membeli, dan kedekatan lokasi. Bobot ditulis eksplisit sebagai konstanta di `lib/services/recommendation.ts` supaya mudah disetel saat uji coba.

@@ -226,6 +226,41 @@ describe("dapatkanRekomendasiMenu", () => {
     expect(idsMalam).toContain("m5"); // Milik v3
   });
 
+  it("menandai sumber_jarak 'estimasi' bila tidak ada data Azure Maps", () => {
+    const hasil = dapatkanRekomendasiMenu(mockVendors, mockMenuItems, {
+      lokasiPengguna: lokasiUGM,
+      batas_anggaran: 30000,
+      sela_waktu_menit: 60,
+      waktuSekarang: new Date("2026-09-24T12:00:00+07:00"),
+    });
+
+    expect(hasil.length).toBeGreaterThan(0);
+    for (const r of hasil) {
+      expect(r.sumber_jarak).toBe("estimasi");
+    }
+  });
+
+  it("memakai jarak dan waktu tempuh dari Azure Maps saat tersedia (jarakAktual), bukan Haversine", () => {
+    // v1 sungguhan cuma 5m dari pengguna menurut rute Azure Maps (jalan
+    // memutar, bukan garis lurus) -- jauh berbeda dari estimasi Haversine.
+    const hasil = dapatkanRekomendasiMenu(mockVendors, mockMenuItems, {
+      lokasiPengguna: lokasiUGM,
+      batas_anggaran: 30000,
+      sela_waktu_menit: 60,
+      waktuSekarang: new Date("2026-09-24T12:00:00+07:00"),
+      jarakAktual: new Map([["v1", { jarakMeter: 5, waktuTempuhMenit: 1 }]]),
+    });
+
+    const m1 = hasil.find((h) => h.menu_item_id === "m1");
+    expect(m1?.sumber_jarak).toBe("azure_maps");
+    expect(m1?.jarak_meter).toBe(5);
+    expect(m1?.waktu_tempuh_satu_arah_menit).toBe(1);
+
+    // Vendor lain yang tidak ada di jarakAktual tetap jatuh ke estimasi
+    const m3 = hasil.find((h) => h.menu_item_id === "m3");
+    expect(m3?.sumber_jarak).toBe("estimasi");
+  });
+
   it("menyaring warung yang waktu tempuhnya melebihi sela waktu kuliah", () => {
     const hasil = dapatkanRekomendasiMenu(mockVendors, mockMenuItems, {
       lokasiPengguna: lokasiUGM,
