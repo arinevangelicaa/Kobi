@@ -105,6 +105,31 @@ export function menitSejakTengahMalam(jamStr: string): number {
 }
 
 /**
+ * Mengonversi sebuah instant waktu absolut menjadi menit sejak tengah malam
+ * WIB (Asia/Jakarta, UTC+7).
+ *
+ * `jam_buka`/`jam_tutup` vendor adalah jam dinding WIB (lihat seed.ts dan
+ * formatPrismaTime di app/api/recommendations/route.ts, yang membacanya
+ * lewat getUTCHours karena driver Postgres menaruh nilai TIME literal di
+ * slot UTC). Memakai Date.getHours() di sini SALAH: itu jam lokal proses
+ * Node, yang bisa UTC di server produksi (default Azure App Service dan
+ * runner GitHub Actions) walau mesin pengembang kebetulan WIB. Lihat
+ * issue #39 untuk reproduksi bug yang ditimbulkan.
+ */
+export function menitWIBSejakTengahMalam(waktu: Date): number {
+  const format = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+  const parts = format.formatToParts(waktu);
+  const jam = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const menit = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  return jam * 60 + menit;
+}
+
+/**
  * Memeriksa apakah warung buka pada waktu tertentu.
  * Menangani kasus:
  * 1. Jam buka dan tutup kosong -> dianggap buka (informal)
@@ -123,7 +148,7 @@ export function apakahWarungBuka(
 
   const buka = menitSejakTengahMalam(jamBuka);
   const tutup = menitSejakTengahMalam(jamTutup);
-  const sekarang = waktu.getHours() * 60 + waktu.getMinutes();
+  const sekarang = menitWIBSejakTengahMalam(waktu);
 
   // Buka 24 jam atau hampir 24 jam (misal 00:00 s.d 23:59)
   if (buka === tutup || (buka === 0 && tutup >= 1430)) {
