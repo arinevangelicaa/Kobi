@@ -5,6 +5,7 @@ import {
   dapatkanRekomendasiMenu,
   hitungJarakHaversine,
   hitungWaktuTempuhMenit,
+  menitWIBSejakTengahMalam,
   type MenuItemInfo,
   type VendorInfo,
 } from "@/lib/services/recommendation";
@@ -117,22 +118,22 @@ describe("hitungJarakHaversine", () => {
 
 describe("apakahWarungBuka", () => {
   it("mengembalikan true untuk warung 24 jam", () => {
-    const siang = new Date("2026-09-24T13:00:00");
+    const siang = new Date("2026-09-24T13:00:00+07:00");
     expect(apakahWarungBuka("00:00", "23:59", siang)).toBe(true);
   });
 
   it("mengecek jam operasional normal", () => {
-    const siang = new Date("2026-09-24T12:00:00");
-    const malam = new Date("2026-09-24T20:00:00");
+    const siang = new Date("2026-09-24T12:00:00+07:00");
+    const malam = new Date("2026-09-24T20:00:00+07:00");
 
     expect(apakahWarungBuka("09:00", "17:00", siang)).toBe(true);
     expect(apakahWarungBuka("09:00", "17:00", malam)).toBe(false);
   });
 
   it("mengecek jam operasional melewati tengah malam", () => {
-    const malam = new Date("2026-09-24T23:30:00");
-    const diniHari = new Date("2026-09-24T01:30:00");
-    const pagi = new Date("2026-09-24T08:00:00");
+    const malam = new Date("2026-09-24T23:30:00+07:00");
+    const diniHari = new Date("2026-09-24T01:30:00+07:00");
+    const pagi = new Date("2026-09-24T08:00:00+07:00");
 
     expect(apakahWarungBuka("18:00", "02:00", malam)).toBe(true);
     expect(apakahWarungBuka("18:00", "02:00", diniHari)).toBe(true);
@@ -141,6 +142,27 @@ describe("apakahWarungBuka", () => {
 
   it("mengembalikan true jika jam tidak terdata", () => {
     expect(apakahWarungBuka(null, null)).toBe(true);
+  });
+
+  it("tetap benar untuk instant yang sama walau TZ proses Node berbeda (regresi #39)", () => {
+    // 2026-10-04T07:00:00Z == 14:00 WIB, jam operasional jelas untuk warung
+    // 08:00-20:00. Dulu apakahWarungBuka memakai Date.getHours() (jam lokal
+    // PROSES, bukan jam dinding WIB), yang sama persis dengan jam dinding WIB
+    // hanya kalau TZ proses kebetulan Asia/Jakarta -- ini kebetulan benar di
+    // mesin pengembang tapi salah di Azure App Service/CI (TZ=UTC default).
+    // Instant di sini sengaja fixed (bukan "new Date()") supaya hasilnya
+    // deterministik di TZ proses mana pun saat menjalankan test ini.
+    const jam2SiangWIB = new Date("2026-10-04T07:00:00.000Z");
+    expect(apakahWarungBuka("08:00", "20:00", jam2SiangWIB)).toBe(true);
+  });
+});
+
+describe("menitWIBSejakTengahMalam", () => {
+  it("mengonversi instant UTC ke menit sejak tengah malam WIB (UTC+7)", () => {
+    // 17:00 UTC == 00:00 WIB keesokan harinya
+    expect(menitWIBSejakTengahMalam(new Date("2026-10-04T17:00:00.000Z"))).toBe(0);
+    // 00:00 UTC == 07:00 WIB
+    expect(menitWIBSejakTengahMalam(new Date("2026-10-04T00:00:00.000Z"))).toBe(7 * 60);
   });
 });
 
@@ -158,7 +180,7 @@ describe("dapatkanRekomendasiMenu", () => {
       lokasiPengguna: lokasiUGM,
       batas_anggaran: 15000, // m2 (Rp25.000) dan m3 (Rp18.000) harus tersaring keluar
       sela_waktu_menit: 60,
-      waktuSekarang: new Date("2026-09-24T12:00:00"),
+      waktuSekarang: new Date("2026-09-24T12:00:00+07:00"),
     });
 
     const ids = hasil.map((h) => h.menu_item_id);
@@ -172,7 +194,7 @@ describe("dapatkanRekomendasiMenu", () => {
       lokasiPengguna: lokasiUGM,
       batas_anggaran: 30000,
       sela_waktu_menit: 60,
-      waktuSekarang: new Date("2026-09-24T12:00:00"),
+      waktuSekarang: new Date("2026-09-24T12:00:00+07:00"),
     });
 
     const ids = hasil.map((h) => h.menu_item_id);
@@ -185,7 +207,7 @@ describe("dapatkanRekomendasiMenu", () => {
       lokasiPengguna: lokasiUGM,
       batas_anggaran: 30000,
       sela_waktu_menit: 60,
-      waktuSekarang: new Date("2026-09-24T12:00:00"),
+      waktuSekarang: new Date("2026-09-24T12:00:00+07:00"),
     });
 
     const idsSiang = hasilSiang.map((h) => h.menu_item_id);
@@ -196,7 +218,7 @@ describe("dapatkanRekomendasiMenu", () => {
       lokasiPengguna: lokasiUGM,
       batas_anggaran: 30000,
       sela_waktu_menit: 60,
-      waktuSekarang: new Date("2026-09-24T21:00:00"),
+      waktuSekarang: new Date("2026-09-24T21:00:00+07:00"),
     });
 
     const idsMalam = hasilMalam.map((h) => h.menu_item_id);
@@ -209,7 +231,7 @@ describe("dapatkanRekomendasiMenu", () => {
       lokasiPengguna: lokasiUGM,
       batas_anggaran: 30000,
       sela_waktu_menit: 45, // Hanya cukup untuk warung dekat
-      waktuSekarang: new Date("2026-09-24T12:00:00"),
+      waktuSekarang: new Date("2026-09-24T12:00:00+07:00"),
     });
 
     const ids = hasil.map((h) => h.menu_item_id);
@@ -221,7 +243,7 @@ describe("dapatkanRekomendasiMenu", () => {
       lokasiPengguna: lokasiUGM,
       batas_anggaran: 20000,
       sela_waktu_menit: 60,
-      waktuSekarang: new Date("2026-09-24T12:00:00"),
+      waktuSekarang: new Date("2026-09-24T12:00:00+07:00"),
       kesenjanganGizi: [
         {
           zat: "protein_g",
