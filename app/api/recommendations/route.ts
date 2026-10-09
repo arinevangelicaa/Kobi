@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { hitungJarakWaktuBanyakTujuan } from "@/lib/azure/maps";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { dateKeJamStr } from "@/lib/db-time";
 import { hitungKesenjangan, jumlahkanAsupan, type EstimasiGizi, type Kesenjangan } from "@/lib/services/nutrition-gap";
 import {
   apakahWarungBuka,
@@ -14,13 +15,6 @@ import { recommendationQuerySchema } from "@/lib/validation/recommendation";
 
 function errorResponse(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
-}
-
-function formatPrismaTime(d: Date | null): string | null {
-  if (!d) return null;
-  const h = d.getUTCHours().toString().padStart(2, "0");
-  const m = d.getUTCMinutes().toString().padStart(2, "0");
-  return `${h}:${m}`;
 }
 
 export async function POST(request: Request) {
@@ -112,8 +106,8 @@ export async function POST(request: Request) {
       alamat: v.alamat,
       latitude: Number(v.latitude),
       longitude: Number(v.longitude),
-      jam_buka: formatPrismaTime(v.jam_buka),
-      jam_tutup: formatPrismaTime(v.jam_tutup),
+      jam_buka: dateKeJamStr(v.jam_buka),
+      jam_tutup: dateKeJamStr(v.jam_tutup),
     });
 
     for (const m of v.menu_items) {
