@@ -7,6 +7,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../lib/generated/prisma/client";
+import { jamStrKeDate } from "../lib/db-time";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -31,11 +32,6 @@ interface WarungSeed {
   jam_buka: string; // format "HH:MM"
   jam_tutup: string; // format "HH:MM"
   menus: MenuSeed[];
-}
-
-function parseTime(timeStr: string): Date {
-  const [hours, minutes] = timeStr.split(":");
-  return new Date(`1970-01-01T${(hours ?? "00").padStart(2, "0")}:${(minutes ?? "00").padStart(2, "0")}:00.000Z`);
 }
 
 export const DAFTAR_WARUNG_SEED: WarungSeed[] = [
@@ -286,8 +282,8 @@ async function main() {
   let totalMenuBaru = 0;
 
   for (const dataWarung of DAFTAR_WARUNG_SEED) {
-    const jamBukaDate = parseTime(dataWarung.jam_buka);
-    const jamTutupDate = parseTime(dataWarung.jam_tutup);
+    const jamBukaDate = jamStrKeDate(dataWarung.jam_buka);
+    const jamTutupDate = jamStrKeDate(dataWarung.jam_tutup);
 
     // Cari apakah vendor sudah pernah di-seed sebelumnya berdasarkan nama_warung
     let vendor = await prisma.vendor.findFirst({

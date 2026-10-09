@@ -2,23 +2,11 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { dateKeJamStr, jamStrKeDate } from "@/lib/db-time";
 import { scheduleCreateSchema } from "@/lib/validation/schedule";
 
 function errorResponse(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
-}
-
-function parseTimeToDate(jamStr: string): Date {
-  const [h, m] = jamStr.split(":").map(Number);
-  const d = new Date(1970, 0, 1, h, m, 0, 0);
-  return d;
-}
-
-function formatPrismaTime(d: Date | null): string {
-  if (!d) return "";
-  const h = d.getHours().toString().padStart(2, "0");
-  const m = d.getMinutes().toString().padStart(2, "0");
-  return `${h}:${m}`;
 }
 
 export async function GET() {
@@ -39,8 +27,8 @@ export async function GET() {
       id: s.id,
       mata_kuliah: s.mata_kuliah,
       hari: s.hari,
-      jam_mulai: formatPrismaTime(s.jam_mulai),
-      jam_selesai: formatPrismaTime(s.jam_selesai),
+      jam_mulai: dateKeJamStr(s.jam_mulai),
+      jam_selesai: dateKeJamStr(s.jam_selesai),
       lokasi_ruang: s.lokasi_ruang,
     })),
   });
@@ -72,8 +60,8 @@ export async function POST(request: Request) {
       user_id: userId,
       mata_kuliah: data.mata_kuliah,
       hari: data.hari,
-      jam_mulai: parseTimeToDate(data.jam_mulai),
-      jam_selesai: parseTimeToDate(data.jam_selesai),
+      jam_mulai: jamStrKeDate(data.jam_mulai),
+      jam_selesai: jamStrKeDate(data.jam_selesai),
       lokasi_ruang: data.lokasi_ruang ?? null,
     },
   });
