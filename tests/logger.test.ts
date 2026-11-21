@@ -183,6 +183,45 @@ describe("redaksi", () => {
     expect(hasil).not.toContain("sangat-rahasia");
     expect(hasil).toContain("postgresql://[REDAKSI]@host");
   });
+
+  it("menyamarkan seluruh password yang mengandung @ mentah (regresi kebocoran parsial)", () => {
+    const hasil = JSON.stringify(redaksi({ info: "gagal ke postgresql://kobi:p@ss@host:5432/kobi" }));
+    expect(hasil).not.toContain("p@ss");
+    expect(hasil).not.toMatch(/ss@host/);
+    expect(hasil).toContain("postgresql://[REDAKSI]@host:5432/kobi");
+  });
+
+  it("tidak menyamarkan URL tanpa userinfo, walau path memuat @", () => {
+    const url = "https://contoh.id/profil/@adnan?x=1";
+    expect(redaksi({ url })).toEqual({ url });
+  });
+
+  it.each(["AZURE_MAPS_KEY", "AZURE_DOCINTEL_KEY", "accountKey", "api-key"])(
+    "menandai kunci berakhiran key: %s",
+    (kunci) => {
+      expect(apakahKunciSensitif(kunci)).toBe(true);
+    },
+  );
+
+  it("menyamarkan connection string gaya ADO/Azure di dalam pesan", () => {
+    const pesan =
+      "DefaultEndpointsProtocol=https;AccountName=kobi;AccountKey=abc123XYZ==;EndpointSuffix=core.windows.net; Password=hunter2;";
+    const hasil = JSON.stringify(redaksi({ pesan }));
+    expect(hasil).not.toContain("abc123XYZ");
+    expect(hasil).not.toContain("hunter2");
+    expect(hasil).toContain("AccountName=kobi");
+  });
+
+  it("tidak melempar dan tetap menulis entri bila konteks punya getter yang melempar", () => {
+    const konteks = {
+      get bom(): string {
+        throw new Error("getter rusak");
+      },
+    };
+    const entri = JSON.parse(formatEntri("error", "galat di penanganan", konteks));
+    expect(entri).toMatchObject({ level: "error", pesan: "galat di penanganan" });
+    expect(entri.konteks).toBe("[GAGAL DIREDAKSI]");
+  });
 });
 
 describe("logger tidak pernah membocorkan data sensitif", () => {

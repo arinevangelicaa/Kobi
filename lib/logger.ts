@@ -46,14 +46,24 @@ function normalisasiKunci(kunci: string): string {
 
 export function apakahKunciSensitif(kunci: string): boolean {
   const norm = normalisasiKunci(kunci);
-  return POTONGAN_KUNCI_SENSITIF.some((potongan) => norm.includes(potongan));
+  // Akhiran "key" menangkap AZURE_MAPS_KEY dan AZURE_DOCINTEL_KEY yang tidak
+  // mengandung potongan lain di daftar.
+  return norm.endsWith("key") || POTONGAN_KUNCI_SENSITIF.some((potongan) => norm.includes(potongan));
 }
 
 // postgresql://user:password@host -> postgresql://[REDAKSI]@host
-const KREDENSIAL_URL = /([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+:[^\s/@]*@/gi;
+// Menyamarkan seluruh bagian userinfo sampai `@` TERAKHIR di authority (sebelum
+// `/`, `?`, atau `#`), karena URL dengan `@` mentah di password (kobi:p@ss@host)
+// tetap valid bagi parser WHATWG; berhenti di `@` pertama membocorkan "ss".
+const KREDENSIAL_URL = /([a-z][a-z0-9+.-]*:\/\/)[^\s/?#]*@/gi;
+
+// Connection string gaya ADO/Azure: Password=...; AccountKey=...; SharedAccessSignature=...
+const KREDENSIAL_KUNCI_NILAI = /(password|pwd|accountkey|sharedaccesssignature)=[^;\s]*/gi;
 
 function redaksiString(nilai: string): string {
-  return nilai.replace(KREDENSIAL_URL, `$1${NILAI_REDAKSI}@`);
+  return nilai
+    .replace(KREDENSIAL_URL, `$1${NILAI_REDAKSI}@`)
+    .replace(KREDENSIAL_KUNCI_NILAI, `$1=${NILAI_REDAKSI}`);
 }
 
 const KEDALAMAN_MAKS = 6;
@@ -169,9 +179,15 @@ export function formatEntri(
   };
   if (requestId) entri.request_id = requestId;
 
-  const aman = redaksi(konteks) as Konteks;
-  for (const [kunci, isi] of Object.entries(aman)) {
-    if (!KUNCI_INTI.has(kunci)) entri[kunci] = isi;
+  // Logger dipanggil dari penanganan galat; ia tidak boleh ikut melempar
+  // (getter yang melempar, Proxy yang dicabut) dan menghilangkan respons 500/503.
+  try {
+    const aman = redaksi(konteks) as Konteks;
+    for (const [kunci, isi] of Object.entries(aman)) {
+      if (!KUNCI_INTI.has(kunci)) entri[kunci] = isi;
+    }
+  } catch {
+    entri.konteks = "[GAGAL DIREDAKSI]";
   }
 
   try {
