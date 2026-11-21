@@ -5,6 +5,7 @@ import { hitungJarakWaktuBanyakTujuan } from "@/lib/azure/maps";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dateKeJamStr } from "@/lib/db-time";
+import { logger } from "@/lib/logger";
 import { dapatkanGiziHarian } from "@/lib/services/daily-nutrition";
 import type { Kesenjangan } from "@/lib/services/nutrition-gap";
 import {
@@ -124,7 +125,7 @@ async function handlePost(request: Request) {
       });
     } catch (e) {
       // Gagal simpan log rekomendasi tidak boleh membatalkan hasil respons ke pengguna
-      console.warn("Gagal menyimpan riwayat rekomendasi ke basis data:", e);
+      logger.warn("Gagal menyimpan riwayat rekomendasi ke basis data", { galat: e });
     }
   }
 

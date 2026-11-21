@@ -121,3 +121,46 @@ describe("denganPenangananGalat", () => {
     expect(res.status).toBe(503);
   });
 });
+
+describe("request_id pada galat", () => {
+  function barisLogTerakhir() {
+    const panggilan = vi.mocked(console.error).mock.calls;
+    return JSON.parse(String(panggilan[panggilan.length - 1][0]));
+  }
+
+  it("tanganiGalat mencatat satu baris JSON berisi request_id yang sama dengan header respons", () => {
+    const res = tanganiGalat(new Error("boom"));
+    const log = barisLogTerakhir();
+    expect(log.level).toBe("error");
+    expect(log.request_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(res.headers.get("x-request-id")).toBe(log.request_id);
+  });
+
+  it("denganPenangananGalat memakai x-request-id masuk yang aman", async () => {
+    const handler = denganPenangananGalat(async (req: Request) => {
+      void req;
+      throw new Error("boom");
+    });
+    const res = await handler(
+      new Request("http://x/api", { headers: { "x-request-id": "abc-12345678" } }),
+    );
+    expect(res.status).toBe(500);
+    expect(res.headers.get("x-request-id")).toBe("abc-12345678");
+    expect(barisLogTerakhir().request_id).toBe("abc-12345678");
+  });
+
+  it("respons error biasa di dalam handler juga membawa x-request-id", async () => {
+    const handler = denganPenangananGalat(async (req: Request) => {
+      void req;
+      return errorResponse(400, "VALIDATION_ERROR", "salah");
+    });
+    const res = await handler(new Request("http://x/api"));
+    expect(res.headers.get("x-request-id")).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("log galat tidak memuat rahasia dari pesan galat berisi URL koneksi", () => {
+    tanganiGalat(new Error("gagal ke postgresql://kobi:sangat-rahasia@db:5432/kobi"));
+    const teks = String(vi.mocked(console.error).mock.calls.at(-1)?.[0]);
+    expect(teks).not.toContain("sangat-rahasia");
+  });
+});
