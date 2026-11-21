@@ -132,7 +132,7 @@ export async function hitungJarakWaktuBanyakTujuan(
   }
 
   try {
-    const url = `${AZURE_MAPS_MATRIX_URL}?api-version=${AZURE_MAPS_API_VERSION}&subscription-key=${apiKey}&travelMode=${TRAVEL_MODE}`;
+    const url = `${AZURE_MAPS_MATRIX_URL}?api-version=${AZURE_MAPS_API_VERSION}&subscription-key=${encodeURIComponent(apiKey)}&travelMode=${TRAVEL_MODE}`;
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
