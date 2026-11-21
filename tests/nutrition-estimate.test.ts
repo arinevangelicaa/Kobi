@@ -58,7 +58,7 @@ describe("dapatkanEstimasiGizi", () => {
     if (hasil.status !== "berhasil") throw new Error("harus berhasil");
     expect(hasil.estimasi.kalori_estimasi).toBe(520); // dibulatkan
     expect(hasil.estimasi.protein_g).toBe(14.5);
-    expect(hasil.estimasi.model_versi).toBe("gpt-kobi@prompt-v1-2026-10-09");
+    expect(hasil.estimasi.model_versi).toBe("gpt-kobi@prompt-v2-2026-11-21");
     expect(hasil.estimasi_harga).toBe(12001); // dibulatkan
     expect(hasil.items).toEqual([{ nama: "nasi putih", porsi: "1 piring" }]);
   });
