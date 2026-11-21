@@ -99,9 +99,20 @@ describe("periksaNarasi", () => {
       "Energi naik karena Anda makan telur.",
       "Makan siang menyebabkan fokus turun.",
       "Protein tinggi meningkatkan energi.",
+      "Protein sedang membantu fokus.",
+      "Makan pagi mendukung energi Anda.",
+      "Fokus berpengaruh pada pola makan.",
+      "Energi dipengaruhi asupan protein.",
+      "Tingkatkan protein untuk fokus.",
+      "Sarapan mencegah energi turun.",
     ]) {
       expect(periksaNarasi([k], AGREGAT)).toMatch(/terlarang/);
     }
+  });
+
+  it("menolak istilah sakit dan nyeri", () => {
+    expect(periksaNarasi(["Fokus turun saat Anda sakit."], AGREGAT)).toMatch(/terlarang/);
+    expect(periksaNarasi(["Ada keluhan nyeri kepala."], AGREGAT)).toMatch(/terlarang/);
   });
 
   it("menolak saran pengobatan", () => {
