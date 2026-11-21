@@ -7,6 +7,7 @@ const findManyMock = vi.fn();
 vi.mock("@/lib/db", () => ({ prisma: { checkin: { findMany: (...a: unknown[]) => findManyMock(...a) } } }));
 
 import { GET } from "@/app/api/trends/weekly/route";
+import { BATAS, resetPembatasLaju } from "@/lib/rate-limit";
 
 const originalFetch = globalThis.fetch;
 const originalEnv = { ...process.env };
@@ -26,6 +27,7 @@ function baris(energi: number, fokus: number, protein: number | null) {
 beforeEach(() => {
   authMock.mockReset();
   findManyMock.mockReset();
+  resetPembatasLaju();
   delete process.env.AZURE_OPENAI_ENDPOINT;
   delete process.env.AZURE_OPENAI_API_KEY;
   delete process.env.AZURE_OPENAI_DEPLOYMENT;
@@ -118,6 +120,37 @@ describe("GET /api/trends/weekly", () => {
     const body = await (await GET(req("?minggu=2026-11-18"))).json();
 
     expect(body.narasi).toEqual({ teks: "Minggu ini Anda mengisi 3 check-in.", sumber: "model" });
+  });
+
+  it("429 + Retry-After setelah melewati batas; DB dan Azure tidak dipanggil saat ditolak", async () => {
+    authMock.mockResolvedValue({ user: { id: "u1" } });
+    findManyMock.mockResolvedValue([]);
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    for (let i = 0; i < BATAS.trenMingguan.maks; i++) {
+      expect((await GET(req("?minggu=2026-11-18"))).status).toBe(200);
+    }
+    findManyMock.mockClear();
+
+    const res = await GET(req("?minggu=2026-11-18"));
+
+    expect(res.status).toBe(429);
+    expect((await res.json()).error.code).toBe("RATE_LIMITED");
+    const detik = Number(res.headers.get("Retry-After"));
+    expect(detik).toBeGreaterThanOrEqual(1);
+    expect(detik).toBeLessThanOrEqual(BATAS.trenMingguan.jendelaMs / 1000);
+    expect(findManyMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("batas per pengguna: pengguna lain tetap lolos", async () => {
+    findManyMock.mockResolvedValue([]);
+    authMock.mockResolvedValue({ user: { id: "u1" } });
+    for (let i = 0; i <= BATAS.trenMingguan.maks; i++) await GET(req());
+
+    authMock.mockResolvedValue({ user: { id: "u2" } });
+    expect((await GET(req())).status).toBe(200);
   });
 
   it("galat koneksi DB menjadi 503 tanpa detail internal", async () => {
