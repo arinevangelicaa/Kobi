@@ -9,9 +9,21 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
+import {
+  buatRequestId,
+  denganRequestId,
+  logger,
+  requestIdDariRequest,
+  requestIdSaatIni,
+} from "@/lib/logger";
 
 export function errorResponse(status: number, code: string, message: string) {
-  return NextResponse.json({ error: { code, message } }, { status });
+  const respons = NextResponse.json({ error: { code, message } }, { status });
+  // Memudahkan pengguna/tim menautkan keluhan ke baris log. Hanya ada bila
+  // handler berjalan di dalam `denganPenangananGalat`/`tanganiGalat`.
+  const requestId = requestIdSaatIni();
+  if (requestId) respons.headers.set("x-request-id", requestId);
+  return respons;
 }
 
 export type HasilUser =
@@ -77,17 +89,27 @@ export function apakahDbTidakTersedia(galat: unknown): boolean {
  * (docs/architecture.md bagian 15): DB tidak terjangkau jadi 503, sisanya 500.
  */
 export function tanganiGalat(galat: unknown) {
-  if (apakahDbTidakTersedia(galat)) {
-    console.error("Basis data tidak dapat dijangkau:", galat);
-    return errorResponse(
-      503,
-      "DB_UNAVAILABLE",
-      "Layanan sedang tidak tersedia, coba lagi sebentar lagi.",
-    );
-  }
+  // Di dalam `denganPenangananGalat` request_id sudah ada; bila dipanggil
+  // langsung dari catch milik route, buat satu supaya log dan respons cocok.
+  const requestId = requestIdSaatIni() ?? buatRequestId();
 
-  console.error("Galat tak tertangani di Route Handler:", galat);
-  return errorResponse(500, "INTERNAL_ERROR", "Terjadi kesalahan di server, coba lagi.");
+  return denganRequestId(requestId, () => {
+    const dbMati = apakahDbTidakTersedia(galat);
+    const status = dbMati ? 503 : 500;
+
+    logger.error(
+      dbMati ? "Basis data tidak dapat dijangkau" : "Galat tak tertangani di Route Handler",
+      { galat, status },
+    );
+
+    return dbMati
+      ? errorResponse(
+          503,
+          "DB_UNAVAILABLE",
+          "Layanan sedang tidak tersedia, coba lagi sebentar lagi.",
+        )
+      : errorResponse(500, "INTERNAL_ERROR", "Terjadi kesalahan di server, coba lagi.");
+  });
 }
 
 /** Membungkus handler supaya galat yang lolos dibalas lewat `tanganiGalat`. */
@@ -95,10 +117,16 @@ export function denganPenangananGalat<A extends unknown[]>(
   handler: (...args: A) => Promise<Response>,
 ) {
   return async (...args: A): Promise<Response> => {
-    try {
-      return await handler(...args);
-    } catch (galat) {
-      return tanganiGalat(galat);
-    }
+    // Argumen pertama Route Handler adalah Request; pakai `x-request-id`
+    // masuk bila aman, selain itu buat baru.
+    const requestId = requestIdDariRequest(args[0] as Parameters<typeof requestIdDariRequest>[0]);
+
+    return denganRequestId(requestId, async () => {
+      try {
+        return await handler(...args);
+      } catch (galat) {
+        return tanganiGalat(galat);
+      }
+    });
   };
 }
