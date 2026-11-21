@@ -340,9 +340,9 @@ describe("integritas: penulisan bersarang dan cascade", () => {
     });
 
     // TEMUAN: kode galatnya P2014 (pelanggaran relasi 1-1 yang dideteksi Prisma),
-    // BUKAN P2002 seperti yang diasumsikan `reprosesEstimasi` dan tes unitnya.
-    // Bahkan untuk update bersamaan yang sungguh balapan, yang kalah mendapat
-    // P2014 (lihat tes BUG di bawah). P2002 hanya muncul untuk create langsung.
+    // BUKAN P2002 seperti yang dulu diasumsikan `reprosesEstimasi` dan tes
+    // unitnya. P2002 muncul untuk create langsung (tes di bawah); update
+    // bersamaan yang sungguh balapan diuji pada tes "tiga update bersamaan".
     await expect(
       prisma.mealLog.update({
         where: { id: meal.id },
@@ -351,6 +351,28 @@ describe("integritas: penulisan bersarang dan cascade", () => {
     ).rejects.toMatchObject({ code: "P2014" });
 
     expect((await prisma.mealLog.findUniqueOrThrow({ where: { id: meal.id } })).total_harga).toBe(12000);
+    expect(await prisma.nutritionEstimate.count()).toBe(1);
+  });
+
+  it("tiga update bersamaan dengan nested create: tepat satu menang, yang kalah P2014 atau P2002 (keduanya ditangani reprosesEstimasi)", async () => {
+    const user = await buatUser();
+    const meal = await mealTertundaMilik(user.id);
+
+    const hasil = await Promise.allSettled(
+      [1, 2, 3].map(() =>
+        prisma.mealLog.update({
+          where: { id: meal.id },
+          data: { nutrition_estimate: { create: dataEstimasi } },
+        }),
+      ),
+    );
+
+    // Bukti balapan nyata: kode galat yang kalah bukan hanya P2002. Kode apa pun
+    // yang muncul harus termasuk yang ditangani `reprosesEstimasi`.
+    const kalah = hasil.filter((h) => h.status === "rejected") as PromiseRejectedResult[];
+    expect(hasil.filter((h) => h.status === "fulfilled")).toHaveLength(1);
+    expect(kalah).toHaveLength(2);
+    for (const k of kalah) expect(["P2002", "P2014"]).toContain((k.reason as { code?: string }).code);
     expect(await prisma.nutritionEstimate.count()).toBe(1);
   });
 
@@ -364,7 +386,7 @@ describe("integritas: penulisan bersarang dan cascade", () => {
     ).rejects.toMatchObject({ code: "P2002" });
   });
 
-  // BUG: `reprosesEstimasi` (lib/services/meal.ts) menangani kalah balapan
+  // Regresi (sebelumnya bug): `reprosesEstimasi` (lib/services/meal.ts) menangani kalah balapan
   // dengan `kodeGalat(galat) !== "P2002"` -> lempar ulang. Tetapi update dengan
   // nested `nutrition_estimate: { create }` pada relasi 1-1 yang sudah terisi
   // gagal dengan P2014, bukan P2002 (dibuktikan tes di atas; dalam 3 update
@@ -374,7 +396,7 @@ describe("integritas: penulisan bersarang dan cascade", () => {
   // klien menerima 500. Seharusnya status "sudah_ada" dengan hasil pemenang.
   // Perbaikan: tangani juga P2014 (atau pakai `nutritionEstimate.create` langsung
   // yang memberi P2002).
-  it.fails("BUG: reprosesEstimasi yang kalah balapan (galat P2014) seharusnya sudah_ada, bukan melempar", async () => {
+  it("regresi: reprosesEstimasi yang kalah balapan (galat P2014) seharusnya sudah_ada, bukan melempar", async () => {
     const user = await buatUser();
     const meal = await mealTertundaMilik(user.id);
     pasangAzureOpenAI();
@@ -522,13 +544,13 @@ describe("integritas: penulisan bersarang dan cascade", () => {
 // ---------------------------------------------------------------------------
 
 describe("ketahanan input: galat DB tidak boleh bocor sebagai 500/lemparan", () => {
-  // BUG: `tanggal_lahir` hanya divalidasi dengan regex YYYY-MM-DD. "2003-02-31"
+  // Regresi (sebelumnya bug): `tanggal_lahir` hanya divalidasi dengan regex YYYY-MM-DD. "2003-02-31"
   // lolos Zod, lalu `new Date("2003-02-31")` (V8) menggulirkannya diam-diam ke
   // 2003-03-03: PATCH menjawab 200 dan menyimpan tanggal lahir yang SALAH
   // (dan target gizi dihitung dari usia yang salah). Seharusnya 400
   // VALIDATION_ERROR, seperti `apakahTanggalValid` di lib/validation/meal.ts
   // untuk parameter ?tanggal=.
-  it.fails("BUG: PATCH /api/profile dengan tanggal_lahir 2003-02-31 seharusnya 400, bukan 200 dengan tanggal bergeser", async () => {
+  it("regresi: PATCH /api/profile dengan tanggal_lahir 2003-02-31 seharusnya 400, bukan 200 dengan tanggal bergeser", async () => {
     const user = await buatUser();
     masukSebagai(user.id);
 
@@ -537,11 +559,11 @@ describe("ketahanan input: galat DB tidak boleh bocor sebagai 500/lemparan", () 
     expect(res.status).toBe(400);
   });
 
-  // BUG: sama dengan di atas, tetapi "2003-13-01" menghasilkan Invalid Date.
+  // Regresi (sebelumnya bug): sama dengan di atas, tetapi "2003-13-01" menghasilkan Invalid Date.
   // Prisma melempar galat validasi dan karena /api/profile tidak dibungkus
   // `denganPenangananGalat`, handler melempar (500 mentah, pesan galat internal
   // bisa bocor). Seharusnya 400 VALIDATION_ERROR.
-  it.fails("BUG: PATCH /api/profile dengan tanggal_lahir 2003-13-01 seharusnya 400, bukan melempar galat", async () => {
+  it("regresi: PATCH /api/profile dengan tanggal_lahir 2003-13-01 seharusnya 400, bukan melempar galat", async () => {
     const user = await buatUser();
     masukSebagai(user.id);
 
@@ -550,11 +572,11 @@ describe("ketahanan input: galat DB tidak boleh bocor sebagai 500/lemparan", () 
     expect(res.status).toBe(400);
   });
 
-  // BUG: `preferensi_anggaran` hanya dibatasi min(0), tanpa batas atas, padahal
+  // Regresi (sebelumnya bug): `preferensi_anggaran` hanya dibatasi min(0), tanpa batas atas, padahal
   // kolomnya INT4. Nilai 3.000.000.000 lolos Zod lalu ditolak Postgres
   // (out of range) sebagai galat yang tidak ditangkap -> 500. Seharusnya 400
   // dengan pesan batas wajar (mis. maks 100.000.000 seperti `total_harga`).
-  it.fails("BUG: PATCH /api/profile dengan preferensi_anggaran di luar rentang INT4 seharusnya 400", async () => {
+  it("regresi: PATCH /api/profile dengan preferensi_anggaran di luar rentang INT4 seharusnya 400", async () => {
     const user = await buatUser();
     masukSebagai(user.id);
 
@@ -563,11 +585,11 @@ describe("ketahanan input: galat DB tidak boleh bocor sebagai 500/lemparan", () 
     expect(res.status).toBe(400);
   });
 
-  // BUG: teks dengan karakter NUL (\u0000) lolos validasi `teks_input` (hanya
+  // Regresi (sebelumnya bug): teks dengan karakter NUL (\u0000) lolos validasi `teks_input` (hanya
   // trim/min/max) tetapi Postgres menolak NUL di kolom text. Di
   // `catatMakan` galat itu bukan P2003, jadi dilempar ulang dan klien menerima
   // 500 INTERNAL_ERROR. Seharusnya 400 VALIDATION_ERROR (atau NUL dibuang).
-  it.fails("BUG: POST /api/meals dengan teks_input berisi NUL seharusnya 400, bukan 500", async () => {
+  it("regresi: POST /api/meals dengan teks_input berisi NUL seharusnya 400, bukan 500", async () => {
     const user = await buatUser();
     masukSebagai(user.id);
     pasangAzureOpenAI();

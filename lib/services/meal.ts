@@ -280,7 +280,7 @@ export type HasilReproses =
 /**
  * Memproses ulang estimasi satu catatan milik `userId`. Idempoten: bila sudah
  * punya estimasi tidak ada panggilan AI dan tidak ada tulis. Dua permintaan
- * bersamaan aman karena `meal_log_id` unik; yang kalah balapan (P2002) membaca
+ * bersamaan aman karena `meal_log_id` unik; yang kalah balapan (P2002 atau P2014) membaca
  * hasil pemenang.
  */
 export async function reprosesEstimasi(
@@ -312,13 +312,20 @@ export async function reprosesEstimasi(
       },
     });
   } catch (galat) {
-    if (kodeGalat(galat) !== "P2002") throw galat;
+    // Update dengan nested `create` pada relasi 1-1 yang sudah terisi gagal
+    // dengan P2014 (terbukti di tes integrasi), bukan P2002 seperti `create`
+    // langsung. Keduanya berarti permintaan lain sudah mengisi estimasi.
+    const kode = kodeGalat(galat);
+    if (kode !== "P2002" && kode !== "P2014") throw galat;
     // Permintaan lain sudah mengisi estimasi lebih dulu: pakai hasilnya.
     const terbaru = await db.mealLog.findFirst({
       where: { id: awal.id, user_id: userId },
       include: { nutrition_estimate: true },
     });
     if (!terbaru) return { status: "tidak_ditemukan" };
+    // P2014 adalah kode umum pelanggaran relasi wajib. Hanya anggap "kalah
+    // balapan" bila estimasi pemenang benar-benar ada; selain itu galat asli.
+    if (!terbaru.nutrition_estimate) throw galat;
     return { status: "sudah_ada", catatan: keCatatanDto(terbaru) };
   }
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { rentangHariWIB } from "@/lib/time-wib";
+import { PESAN_NUL, tanpaNul } from "@/lib/validation/umum";
 
 /** Batas teks bebas dari pengguna. Cukup untuk beberapa item makanan, menahan biaya token. */
 export const BATAS_TEKS_INPUT = 500;
@@ -19,7 +20,8 @@ export const mealCreateSchema = z.object({
     .string({ error: "Teks makanan wajib diisi." })
     .trim()
     .min(1, "Teks makanan tidak boleh kosong.")
-    .max(BATAS_TEKS_INPUT, `Teks makanan maksimal ${BATAS_TEKS_INPUT} karakter.`),
+    .max(BATAS_TEKS_INPUT, `Teks makanan maksimal ${BATAS_TEKS_INPUT} karakter.`)
+    .refine(tanpaNul, PESAN_NUL),
   waktu_makan: z
     .string()
     .datetime({ offset: true, error: "Waktu makan harus berformat tanggal-waktu ISO 8601." })

@@ -348,6 +348,40 @@ describe("reprosesEstimasi", () => {
 
     expect(hasil.status).toBe("sudah_ada");
   });
+
+  it("kalah balapan (P2014, galat nyata dari update + nested create 1-1): sama dengan P2002", async () => {
+    const { db, id, mealLog, baris } = await catatanTertunda();
+    estimasiMock.mockResolvedValue(estimasiBerhasil());
+    mealLog.update.mockImplementationOnce(async () => {
+      baris[0]!.nutrition_estimate = { ...estimasiBerhasil().estimasi };
+      throw galatPrisma("P2014");
+    });
+
+    const hasil = await reprosesEstimasi("u1", id, db);
+
+    expect(hasil.status).toBe("sudah_ada");
+  });
+
+  it("P2014 tanpa estimasi pemenang (galat relasi lain): tetap dilempar, bukan sudah_ada palsu", async () => {
+    const { db, id, mealLog } = await catatanTertunda();
+    estimasiMock.mockResolvedValue(estimasiBerhasil());
+    // Tidak ada yang mengisi estimasi, jadi pembacaan ulang tetap kosong.
+    mealLog.update.mockImplementationOnce(async () => {
+      throw galatPrisma("P2014");
+    });
+
+    await expect(reprosesEstimasi("u1", id, db)).rejects.toMatchObject({ code: "P2014" });
+  });
+
+  it("galat Prisma lain tetap dilempar, bukan ditelan sebagai sudah_ada", async () => {
+    const { db, id, mealLog } = await catatanTertunda();
+    estimasiMock.mockResolvedValue(estimasiBerhasil());
+    mealLog.update.mockImplementationOnce(async () => {
+      throw galatPrisma("P2024");
+    });
+
+    await expect(reprosesEstimasi("u1", id, db)).rejects.toMatchObject({ code: "P2024" });
+  });
 });
 
 describe("cariCatatanTanpaEstimasi dan reprosesSemuaTertunda", () => {

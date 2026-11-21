@@ -87,6 +87,16 @@ describe("register (handler asli, DB sungguhan)", () => {
     }
     expect(await prisma.user.count()).toBe(0);
   });
+
+  it("nama berisi NUL ditolak 400, bukan 500 dari Postgres; tidak ada baris tersimpan", async () => {
+    const res = await registerPost(
+      post("/api/auth/register", { email: emailUnik(), password: "panjangnya-cukup", nama: "Ad\u0000nan" }),
+    );
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("VALIDATION_ERROR");
+    expect(await prisma.user.count()).toBe(0);
+  });
 });
 
 describe("profil dan target gizi", () => {
@@ -288,12 +298,12 @@ describe("jadwal kuliah", () => {
     expect(await prisma.classSchedule.count()).toBe(0);
   });
 
-  // BUG: DELETE /api/schedules/{id} dengan id yang bukan uuid tidak divalidasi.
+  // Regresi (sebelumnya bug): DELETE /api/schedules/{id} dengan id yang bukan uuid tidak divalidasi.
   // `findUnique` pada kolom UUID melempar galat Prisma (P2023) yang tidak
   // ditangkap (route ini tidak dibungkus `denganPenangananGalat`), sehingga
   // handler melempar dan klien menerima 500 mentah. Seharusnya 404 NOT_FOUND
   // (seperti /api/meals/[id]/estimate yang memakai `mealIdSchema`).
-  it.fails("BUG: DELETE dengan id bukan uuid seharusnya 404, bukan melempar galat", async () => {
+  it("regresi: DELETE dengan id bukan uuid seharusnya 404, bukan melempar galat", async () => {
     const user = await buatUser();
     masukSebagai(user.id);
     const res = await scheduleDelete(buatRequest("DELETE", "/api/schedules/bukan-uuid"), paramsId("bukan-uuid"));
