@@ -340,9 +340,9 @@ describe("integritas: penulisan bersarang dan cascade", () => {
     });
 
     // TEMUAN: kode galatnya P2014 (pelanggaran relasi 1-1 yang dideteksi Prisma),
-    // BUKAN P2002 seperti yang diasumsikan `reprosesEstimasi` dan tes unitnya.
-    // Bahkan untuk update bersamaan yang sungguh balapan, yang kalah mendapat
-    // P2014 (lihat tes BUG di bawah). P2002 hanya muncul untuk create langsung.
+    // BUKAN P2002 seperti yang dulu diasumsikan `reprosesEstimasi` dan tes
+    // unitnya. P2002 muncul untuk create langsung (tes di bawah); update
+    // bersamaan yang sungguh balapan diuji pada tes "tiga update bersamaan".
     await expect(
       prisma.mealLog.update({
         where: { id: meal.id },
@@ -351,6 +351,28 @@ describe("integritas: penulisan bersarang dan cascade", () => {
     ).rejects.toMatchObject({ code: "P2014" });
 
     expect((await prisma.mealLog.findUniqueOrThrow({ where: { id: meal.id } })).total_harga).toBe(12000);
+    expect(await prisma.nutritionEstimate.count()).toBe(1);
+  });
+
+  it("tiga update bersamaan dengan nested create: tepat satu menang, yang kalah P2014 atau P2002 (keduanya ditangani reprosesEstimasi)", async () => {
+    const user = await buatUser();
+    const meal = await mealTertundaMilik(user.id);
+
+    const hasil = await Promise.allSettled(
+      [1, 2, 3].map(() =>
+        prisma.mealLog.update({
+          where: { id: meal.id },
+          data: { nutrition_estimate: { create: dataEstimasi } },
+        }),
+      ),
+    );
+
+    // Bukti balapan nyata: kode galat yang kalah bukan hanya P2002. Kode apa pun
+    // yang muncul harus termasuk yang ditangani `reprosesEstimasi`.
+    const kalah = hasil.filter((h) => h.status === "rejected") as PromiseRejectedResult[];
+    expect(hasil.filter((h) => h.status === "fulfilled")).toHaveLength(1);
+    expect(kalah).toHaveLength(2);
+    for (const k of kalah) expect(["P2002", "P2014"]).toContain((k.reason as { code?: string }).code);
     expect(await prisma.nutritionEstimate.count()).toBe(1);
   });
 
