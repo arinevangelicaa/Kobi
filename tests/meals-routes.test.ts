@@ -168,18 +168,31 @@ describe("rate limit POST /api/meals", () => {
   it("batas per pengguna: pengguna lain tetap lolos", async () => {
     catatMakanMock.mockResolvedValue({ status: "tersimpan", catatan, items: [] });
     gizi.mockResolvedValue(null);
-    for (let i = 0; i <= BATAS.catatMakan.maks; i++) {
-      await mealsPost(post("/api/meals", { teks_input: "nasi" }));
+    for (let i = 0; i < BATAS.catatMakan.maks; i++) {
+      expect((await mealsPost(post("/api/meals", { teks_input: "nasi" }))).status).toBe(201);
     }
+    // Pengguna sesi sudah kena batas; tanpa ini tes lolos walau pembatas mati.
+    expect((await mealsPost(post("/api/meals", { teks_input: "nasi" }))).status).toBe(429);
+
     authMock.mockResolvedValue({ user: { id: "user-lain" } });
     expect((await mealsPost(post("/api/meals", { teks_input: "nasi" }))).status).toBe(201);
   });
 
   it("401 tidak menghabiskan kuota dan tidak dibatasi", async () => {
+    catatMakanMock.mockResolvedValue({ status: "tersimpan", catatan, items: [] });
+    gizi.mockResolvedValue(null);
+
     authMock.mockResolvedValue(null);
     for (let i = 0; i <= BATAS.catatMakan.maks; i++) {
       expect((await mealsPost(post("/api/meals", { teks_input: "nasi" }))).status).toBe(401);
     }
+
+    // Setelah login, kuota masih utuh: tepat `maks` permintaan lolos, lalu 429.
+    authMock.mockResolvedValue({ user: { id: "user-sesi" } });
+    for (let i = 0; i < BATAS.catatMakan.maks; i++) {
+      expect((await mealsPost(post("/api/meals", { teks_input: "nasi" }))).status).toBe(201);
+    }
+    expect((await mealsPost(post("/api/meals", { teks_input: "nasi" }))).status).toBe(429);
   });
 
   it("GET riwayat tidak dibatasi (tidak memanggil AI)", async () => {

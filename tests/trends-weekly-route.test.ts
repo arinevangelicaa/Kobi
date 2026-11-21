@@ -147,7 +147,11 @@ describe("GET /api/trends/weekly", () => {
   it("batas per pengguna: pengguna lain tetap lolos", async () => {
     findManyMock.mockResolvedValue([]);
     authMock.mockResolvedValue({ user: { id: "u1" } });
-    for (let i = 0; i <= BATAS.trenMingguan.maks; i++) await GET(req());
+    for (let i = 0; i < BATAS.trenMingguan.maks; i++) {
+      expect((await GET(req())).status).toBe(200);
+    }
+    // u1 sudah kena batas; tanpa ini tes lolos walau pembatas mati.
+    expect((await GET(req())).status).toBe(429);
 
     authMock.mockResolvedValue({ user: { id: "u2" } });
     expect((await GET(req())).status).toBe(200);
