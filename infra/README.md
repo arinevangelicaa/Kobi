@@ -270,6 +270,22 @@ Semuanya belum diuji karena tidak ada subscription dan tidak ada `az`:
   (termasuk binary `@node-rs/argon2` untuk linux-x64 dan pemuatan
   `next.config.ts`). Setelah C4 (`output: "standalone"`) selesai, paket dan
   perintah startup sebaiknya diganti (`node server.js`).
-- Health check `/api/health` hanya valid setelah C4 membuat endpoint-nya.
 - Ketepatan peran Contributor tingkat resource group untuk semua langkah
   workflow.
+- Apakah `what-if` memasking nilai Application Settings turunan parameter
+  `@secure()` (`DATABASE_URL`, `AUTH_SECRET`). Uji sekali dengan secret dummy;
+  bila bocor, jangan jalankan `--what-if` di terminal yang direkam.
+
+## Risiko dan penyimpangan yang diterima
+
+- **Environment `production` di GitHub.** `deploy.yml` hanya berjalan dari
+  `main` (`if: github.ref == 'refs/heads/main'`), tetapi pengaman sebenarnya ada
+  di pengaturan repo: aktifkan deployment branch policy `main` dan required
+  reviewer pada environment `production` sebelum deploy pertama.
+- **Storage memakai kunci akun.** `AZURE_STORAGE_CONNECTION_STRING` berisi kunci
+  akun penuh (`allowSharedKeyAccess: true`), sedangkan arsitektur bagian 12
+  menginginkan akses lewat SAS berumur pendek untuk foto struk. Container tetap
+  privat dan tanpa akses publik. SAS dibuat di kode aplikasi saat S1 dikerjakan.
+- **PostgreSQL dibuka untuk layanan Azure.** Aturan `AllowAzureServices`
+  (0.0.0.0) dan akses publik aktif; pertahanan tinggal kata sandi + SSL. Dipilih
+  demi kesederhanaan MVP, VNet integration menjadi opsi bila diperlukan.

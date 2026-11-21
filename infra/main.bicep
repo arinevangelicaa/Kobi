@@ -341,9 +341,10 @@ resource openAiDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024
 // Azure Maps
 // ---------------------------------------------------------------------------
 
-// API 2023-06-01. Gen2 (SKU G2) dipakai karena SKU Gen1 (S0/S1) dijadwalkan
-// pensiun; Gen2 bayar per transaksi dengan kuota gratis bulanan. Lokasi akun
-// Maps selalu 'global'.
+// API 2023-06-01. Gen2 (SKU G2) dipakai; Gen1 (S0/S1) kabarnya dijadwalkan
+// pensiun, BELUM DIVERIFIKASI ke dokumentasi Azure. Gen2 bayar per transaksi
+// dengan kuota gratis bulanan (juga belum diverifikasi). Lokasi akun Maps
+// selalu 'global'.
 resource maps 'Microsoft.Maps/accounts@2023-06-01' = {
   name: mapsName
   location: 'global'
