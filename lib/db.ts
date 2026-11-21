@@ -10,6 +10,13 @@ const globalForPrisma = globalThis as unknown as {
 /** Batas koneksi per instance bila DATABASE_POOL_MAX tidak diisi atau tidak valid. */
 export const POOL_MAX_DEFAULT = 5;
 
+/**
+ * Batas atas DATABASE_POOL_MAX. Nilai lebih besar dipotong, karena PostgreSQL
+ * tier kecil hanya mengizinkan puluhan koneksi total dan App Service dapat
+ * menjalankan beberapa instance.
+ */
+export const POOL_MAX_BATAS = 50;
+
 export type KonfigurasiPool = {
   connectionString: string;
   /** Jumlah koneksi maksimum di pool pg untuk instance ini. */
@@ -50,7 +57,12 @@ export function bacaKonfigurasiPool(
   const mentah = env.DATABASE_POOL_MAX?.trim();
   if (mentah) {
     const angka = Number(mentah);
-    if (Number.isInteger(angka) && angka >= 1) {
+    if (Number.isInteger(angka) && angka > POOL_MAX_BATAS) {
+      max = POOL_MAX_BATAS;
+      peringatan.push(
+        `DATABASE_POOL_MAX=${mentah} melebihi batas ${POOL_MAX_BATAS}; dipotong menjadi ${POOL_MAX_BATAS}.`,
+      );
+    } else if (Number.isInteger(angka) && angka >= 1) {
       max = angka;
     } else {
       peringatan.push(
@@ -63,6 +75,12 @@ export function bacaKonfigurasiPool(
   if (env.NODE_ENV === "production" && (sslmode === null || sslmode === "disable")) {
     peringatan.push(
       "DATABASE_URL tanpa SSL di produksi; tambahkan ?sslmode=require (docs/architecture.md bagian 5.4).",
+    );
+  } else if (env.NODE_ENV === "production" && sslmode === "no-verify") {
+    // pg memetakan no-verify ke rejectUnauthorized=false: terenkripsi tetapi
+    // sertifikat server tidak diperiksa.
+    peringatan.push(
+      "DATABASE_URL memakai sslmode=no-verify di produksi (sertifikat server tidak diverifikasi); pakai sslmode=require.",
     );
   }
 

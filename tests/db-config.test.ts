@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bacaKonfigurasiPool, POOL_MAX_DEFAULT } from "@/lib/db";
+import { bacaKonfigurasiPool, POOL_MAX_BATAS, POOL_MAX_DEFAULT } from "@/lib/db";
 
 const URL_DB = "postgresql://u:p@host:5432/kobi";
 
@@ -13,8 +13,30 @@ describe("bacaKonfigurasiPool", () => {
   it("memakai default pool kecil bila DATABASE_POOL_MAX kosong", () => {
     const k = bacaKonfigurasiPool({ DATABASE_URL: URL_DB });
     expect(k.max).toBe(POOL_MAX_DEFAULT);
-    expect(POOL_MAX_DEFAULT).toBeLessThanOrEqual(5);
     expect(k.peringatan).toEqual([]);
+  });
+
+  it.each(["51", "100000", "1e21"])(
+    "memotong DATABASE_POOL_MAX=%s ke batas atas dan memberi peringatan",
+    (nilai) => {
+      const k = bacaKonfigurasiPool({ DATABASE_URL: URL_DB, DATABASE_POOL_MAX: nilai });
+      expect(k.max).toBe(POOL_MAX_BATAS);
+      expect(k.peringatan.join(" ")).toContain("melebihi batas");
+    },
+  );
+
+  it("menerima tepat di batas atas tanpa peringatan", () => {
+    const k = bacaKonfigurasiPool({ DATABASE_URL: URL_DB, DATABASE_POOL_MAX: String(POOL_MAX_BATAS) });
+    expect(k.max).toBe(POOL_MAX_BATAS);
+    expect(k.peringatan).toEqual([]);
+  });
+
+  it("memperingatkan di produksi untuk sslmode=no-verify (sertifikat tidak diverifikasi)", () => {
+    const k = bacaKonfigurasiPool({
+      DATABASE_URL: `${URL_DB}?sslmode=no-verify`,
+      NODE_ENV: "production",
+    });
+    expect(k.peringatan.join(" ")).toContain("no-verify");
   });
 
   it("membaca DATABASE_POOL_MAX yang valid", () => {
