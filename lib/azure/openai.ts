@@ -21,6 +21,8 @@
  *   bertambah, `max_tokens` dibatasi, temperature rendah.
  */
 
+import { logger } from "@/lib/logger";
+
 const CHAT_COMPLETIONS_PATH = "/chat/completions";
 /**
  * Versi API Azure OpenAI yang mendukung Structured Outputs (response_format
@@ -274,7 +276,7 @@ async function panggilChat(opsi: OpsiChat): Promise<string | null> {
           await tidur(jedaRetry(percobaan + 1, retryAfter));
           continue;
         }
-        console.warn(`Azure OpenAI mengembalikan status ${response.status}`);
+        logger.warn("Azure OpenAI mengembalikan status galat", { status: response.status });
         return null;
       }
 
@@ -287,18 +289,18 @@ async function panggilChat(opsi: OpsiChat): Promise<string | null> {
 
       const pilihan = hasil.choices?.[0];
       if (pilihan?.message?.refusal) {
-        console.warn("Azure OpenAI menolak permintaan.");
+        logger.warn("Azure OpenAI menolak permintaan.");
         return null;
       }
       if (pilihan?.finish_reason && pilihan.finish_reason !== "stop") {
         // "length" berarti JSON terpotong, "content_filter" berarti disaring.
-        console.warn(`Azure OpenAI berhenti dengan alasan ${pilihan.finish_reason}.`);
+        logger.warn("Azure OpenAI berhenti dengan alasan tak terduga", { finish_reason: pilihan.finish_reason });
         return null;
       }
 
       const konten = pilihan?.message?.content;
       if (!konten) {
-        console.warn("Azure OpenAI tidak mengembalikan konten pesan.");
+        logger.warn("Azure OpenAI tidak mengembalikan konten pesan.");
         return null;
       }
       return konten;
@@ -306,7 +308,7 @@ async function panggilChat(opsi: OpsiChat): Promise<string | null> {
     return null;
   } catch (error) {
     // Timeout atau galat jaringan. Tidak dilempar ulang.
-    console.warn("Azure OpenAI gagal dipanggil:", error);
+    logger.warn("Azure OpenAI gagal dipanggil", { galat: error });
     return null;
   }
 }
@@ -333,12 +335,12 @@ export async function estimasiGiziDariTeks(teksInput: string): Promise<EstimasiG
   try {
     parsed = JSON.parse(konten);
   } catch {
-    console.warn("Balasan Azure OpenAI bukan JSON valid.");
+    logger.warn("Balasan Azure OpenAI bukan JSON valid.");
     return null;
   }
 
   if (!validasiBentukRespons(parsed)) {
-    console.warn("Balasan Azure OpenAI tidak sesuai skema estimasi gizi.");
+    logger.warn("Balasan Azure OpenAI tidak sesuai skema estimasi gizi.");
     return null;
   }
   return parsed;
@@ -608,18 +610,18 @@ export async function narasiPolaDariAgregat(agregat: AgregatPola): Promise<Naras
   try {
     parsed = JSON.parse(konten);
   } catch {
-    console.warn("Narasi Azure OpenAI bukan JSON valid, memakai template.");
+    logger.warn("Narasi Azure OpenAI bukan JSON valid, memakai template.");
     return cadangan();
   }
 
   if (!adalahObjek(parsed) || Object.keys(parsed).length !== 1) {
-    console.warn("Narasi Azure OpenAI tidak sesuai skema, memakai template.");
+    logger.warn("Narasi Azure OpenAI tidak sesuai skema, memakai template.");
     return cadangan();
   }
 
   const alasan = periksaNarasi(parsed.kalimat, agregat);
   if (alasan !== null) {
-    console.warn(`Narasi Azure OpenAI ditolak (${alasan}), memakai template.`);
+    logger.warn("Narasi Azure OpenAI ditolak, memakai template.", { alasan });
     return cadangan();
   }
 
