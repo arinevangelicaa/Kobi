@@ -212,6 +212,15 @@ describe("redaksi", () => {
     expect(hasil).toContain("AccountName=kobi");
   });
 
+  it("menyamarkan kunci di query string (Azure Maps subscription-key) tanpa memotong parameter lain", () => {
+    const url =
+      "https://atlas.microsoft.com/route/matrix/sync/json?api-version=1.0&subscription-key=SANGAT-RAHASIA-123&travelMode=motorcycle";
+    const hasil = JSON.stringify(redaksi({ galat: new Error(`fetch ${url} gagal`) }));
+    expect(hasil).not.toContain("SANGAT-RAHASIA-123");
+    expect(hasil).toContain("subscription-key=[REDAKSI]");
+    expect(hasil).toContain("travelMode=motorcycle");
+  });
+
   it("tidak melempar dan tetap menulis entri bila konteks punya getter yang melempar", () => {
     const konteks = {
       get bom(): string {

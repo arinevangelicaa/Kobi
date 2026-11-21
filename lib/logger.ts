@@ -60,9 +60,14 @@ const KREDENSIAL_URL = /([a-z][a-z0-9+.-]*:\/\/)[^\s/?#]*@/gi;
 // Connection string gaya ADO/Azure: Password=...; AccountKey=...; SharedAccessSignature=...
 const KREDENSIAL_KUNCI_NILAI = /(password|pwd|accountkey|sharedaccesssignature)=[^;\s]*/gi;
 
+// Kunci di query string, mis. Azure Maps `...&subscription-key=XYZ&travelMode=...`
+// (lib/azure/maps.ts). Berhenti di `&`, spasi, atau `;`.
+const KREDENSIAL_QUERY = /((?:subscription-key|api-key|apikey|sig)=)[^&\s;]*/gi;
+
 function redaksiString(nilai: string): string {
   return nilai
     .replace(KREDENSIAL_URL, `$1${NILAI_REDAKSI}@`)
+    .replace(KREDENSIAL_QUERY, `$1${NILAI_REDAKSI}`)
     .replace(KREDENSIAL_KUNCI_NILAI, `$1=${NILAI_REDAKSI}`);
 }
 
