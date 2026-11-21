@@ -622,17 +622,17 @@ cp -r .next/static .next/standalone/.next/static
 cp -r public .next/standalone/public   # hanya bila folder public ada
 ```
 
-Server membaca `PORT` dan `HOSTNAME` dari environment (App Service mengisi `PORT`). `npm start` (`next start`) tetap berjalan, tetapi Next.js mencetak peringatan `"next start" does not work with "output: standalone" configuration`; gunakan `node .next/standalone/server.js` di App Service.
+Server membaca `PORT` dan `HOSTNAME` dari environment (pembacaan `PORT` oleh server standalone sudah dicek di kode Next.js; `infra/main.bicep` menyetel `WEBSITES_PORT`, dan apakah App Service juga mengisi `PORT` perlu dicek di portal Azure setelah resource ada). `npm start` (`next start`) tetap berjalan, tetapi Next.js mencetak peringatan `"next start" does not work with "output: standalone" configuration`; gunakan `node .next/standalone/server.js` di App Service.
 
 `GET /api/health` publik dan ringan (tidak menyentuh basis data), cocok untuk Health check App Service dan smoke test setelah deploy.
 
-**Urutan migrasi**: pada setiap rilis, `prisma migrate deploy` dijalankan terhadap basis data target lebih dulu, baru artefak aplikasi baru dideploy dan menerima trafik. Migrasi harus kompatibel mundur dengan versi aplikasi yang masih berjalan selama transisi. `prisma migrate dev` hanya untuk lokal.
+**Urutan migrasi** (rencana; sudah dikodekan di `.github/workflows/deploy.yml` tetapi belum pernah dijalankan): pada setiap rilis, `prisma migrate deploy` dijalankan terhadap basis data target lebih dulu, baru artefak aplikasi baru dideploy dan menerima trafik. Migrasi harus kompatibel mundur dengan versi aplikasi yang masih berjalan selama transisi. `prisma migrate dev` hanya untuk lokal.
 
 **Catatan observability**: `lib/logger.ts` menulis satu baris JSON per entri (`level`, `pesan`, `waktu`, `request_id`, konteks) ke stdout/stderr, dan menyamarkan kunci sensitif (`password`, `password_hash`, `cookie`, `authorization`, `teks_input`, `AUTH_SECRET`, dan sejenisnya) serta kredensial dalam URL. `request_id` diambil dari header `x-request-id` masuk bila bentuknya aman, selain itu dibuat UUID baru, dan dikembalikan pada header `x-request-id` respons galat. `instrumentation.ts` baru berupa stub: bila `APPLICATIONINSIGHTS_CONNECTION_STRING` terisi, ia hanya mencatat peringatan bahwa paket `@azure/monitor-opentelemetry` belum terpasang, sehingga telemetri Application Insights belum aktif sampai paket itu ditambahkan.
 
 **CI (sudah berjalan)**
 
-`.github/workflows/ci.yml` jalan pada setiap push dan setiap pull request ke `main`, dengan urutan: `npm ci` → `npm run db:generate` → lint → typecheck → test → build. Prisma Client dibuat ulang di CI karena hasil generate tidak di-commit. CI tidak menyentuh basis data mana pun, jadi tidak memerlukan satu pun secret.
+`.github/workflows/main.yml` jalan pada setiap push dan setiap pull request ke `main`, dengan urutan: `npm ci` → `npm run db:generate` → lint → typecheck → test → build. Prisma Client dibuat ulang di CI karena hasil generate tidak di-commit. CI tidak menyentuh basis data mana pun, jadi tidak memerlukan satu pun secret.
 
 **Deploy (belum dibuat)**
 
