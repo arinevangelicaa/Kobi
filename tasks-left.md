@@ -8,11 +8,11 @@ Status: **[SEKARANG]** bisa dikerjakan tanpa Azure (kode, tes dengan mock, IaC, 
 
 | Orang | Peran | Jumlah tugas | Isi utama |
 |---|---|---|---|
-| Adnan | Software, Cloud, AI Engineer | 27 (A 14, C 8, I 5) | Seluruh backend, halaman `/catat` dan `/beranda`, Azure (IaC, deploy, logging), AI (prompt, narasi, evaluasi) |
+| Adnan | Software, Cloud, AI Engineer | 26 (A 13, C 8, I 5) | Seluruh backend, layout `(app)` dan halaman `/catat`, Azure (IaC, deploy, logging), AI (prompt, narasi, evaluasi) |
 | Arin | Project Manager, Software Engineer | 6 | Rute PATCH rekomendasi, halaman `/rekomendasi` dan `/profil`, dokumentasi + demo, verifikasi data warung |
-| Rida | UI/UX Designer, Software Engineer | 5 | Slicing UI, halaman `/tren`, ikon PWA, usability testing |
+| Rida | UI/UX Designer, Software Engineer | 6 | Slicing UI, halaman `/beranda` dan `/tren`, ikon PWA, usability testing |
 
-Pembagian frontend: Adnan membuat layout `(app)` dan halaman inti F1/F2 (`/catat`, `/beranda`) karena itu jalur kritis. Arin dan Rida memakai layout itu untuk halaman mereka dan memoles tampilan.
+Pembagian frontend: Adnan membuat layout `(app)` dan halaman `/catat` (F1, jalur kritis). Halaman `/beranda` dipindahkan ke Rida (#51) karena UI/UX sedang dikembangkan olehnya. Arin dan Rida memakai layout itu untuk halaman mereka dan memoles tampilan. Backend semua endpoint sudah ada di `main`; bentuk respons ada sebagai JSDoc di berkas rutenya.
 
 ## Aturan kerja
 
@@ -25,7 +25,7 @@ Pembagian frontend: Adnan membuat layout `(app)` dan halaman inti F1/F2 (`/catat
 ## Urutan
 
 1. **Fase 0, sekarang:** A1, A2, A3 (fondasi), A4 (meals, jalur kritis, membuka Arin dan Rida), A5, A6, A7. Paralel: C2, C3, C4, C5, C6.
-2. **Fase 1:** A8, I3, A9, A10, A11, I1, I2, A12. Tim: R1-R3, D1-D4.
+2. **Fase 1:** A8, I3, A9, A10, I1, I2, A12. Tim: R1-R3, D1-D4, D6.
 3. **Fase 2, setelah C1:** C8, I4 jalan langsung, tes E2E, D5, R4 (laporan akurasi).
 4. **Fase 3, stretch:** A13, A14, I5.
 
@@ -47,7 +47,6 @@ Dependensi kritis: A4 membuka halaman milik Arin dan Rida. C1 membuka semua peke
 | A8 | `lib/services/trend-insight.ts` agregasi energi/fokus per rentang protein (di kode) + `GET /api/trends/weekly` | | SEKARANG | #49 |
 | A9 | Rate limit per pengguna untuk endpoint AI, `lib/rate-limit.ts` | arsitektur bagian 12 | SEKARANG | #50 |
 | A10 | `app/(app)/layout.tsx`, komponen `Disclaimer`, halaman `/catat` (form, hasil estimasi + gap, slider check-in fungsional) | Rida memoles styling | SEKARANG | #9, #13 |
-| A11 | Halaman `/beranda` (Server Component, gap hari ini) | pakai A2 | SEKARANG | #51 |
 | A12 | Tes integrasi Route Handler vs Postgres uji (service container CI, tanpa secret) | `.github/workflows/main.yml` | SEKARANG | #52 |
 | A13 | PWA ringan: `app/manifest.ts`, service worker aset statis | ikon dari D4 | SEKARANG, prioritas rendah | #53 |
 | A14 | S1 split bill: `lib/services/bill-split.ts` (murni + tes) sekarang; `POST /api/receipts`, `POST /api/receipts/[id]/shares`, halaman `/split-bill` belakangan | | `bill-split` SEKARANG; sisanya STRETCH | #17 |
@@ -99,6 +98,7 @@ Azure belum ada subscription, jadi C2-C7 berupa kode dan IaC yang divalidasi lok
 | D3 | Styling komponen check-in (fungsi dari A10) | setelah A10 | #13 |
 | D4 | Ikon PWA (192/512, maskable) dan aset `public/` | SEKARANG | #64 |
 | D5 | Usability testing sekitar 5 mahasiswa + iterasi desain; QA manual bagian sendiri | setelah halaman inti jadi | #23, #14 |
+| D6 | Halaman `/beranda` (Server Component, gap hari ini dari `dapatkanGiziHarian` atau `GET /api/nutrition/daily`, dua sampai tiga zat terbesar, Disclaimer). Dipindahkan dari Adnan (sebelumnya A11) | setelah layout `(app)` (#9) | #51 |
 
 ---
 
@@ -122,7 +122,7 @@ Azure belum ada subscription, jadi C2-C7 berupa kode dan IaC yang divalidasi lok
 | #48 | A5 | Adnan |
 | #49 | A8, I3 | Adnan |
 | #50 | A9 | Adnan |
-| #51 | A11 | Adnan |
+| #51 | D6 (sebelumnya A11) | Rida |
 | #52 | A12 | Adnan |
 | #53 | A13 | Adnan |
 | #54 | C1 | Adnan |
