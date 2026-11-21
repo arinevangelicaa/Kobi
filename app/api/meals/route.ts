@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { denganPenangananGalat, errorResponse, requireUser } from "@/lib/api";
+import { batasiLaju } from "@/lib/rate-limit";
 import { dapatkanGiziHarian } from "@/lib/services/daily-nutrition";
 import { catatMakan, riwayatMakanHarian } from "@/lib/services/meal";
 import { dailyQuerySchema } from "@/lib/validation/daily";
@@ -41,12 +42,17 @@ import { mealCreateSchema } from "@/lib/validation/meal";
  *
  * Galat (format `{ "error": { "code", "message" } }`):
  *   400 VALIDATION_ERROR (input salah) | 400 VENDOR_NOT_FOUND (vendor_id tidak ada)
- *   401 UNAUTHORIZED | 503 DB_UNAVAILABLE
+ *   401 UNAUTHORIZED | 429 RATE_LIMITED (header `Retry-After` dalam detik;
+ *   batas `BATAS.catatMakan` di lib/rate-limit.ts) | 503 DB_UNAVAILABLE
  */
 async function handlePost(request: Request) {
   const hasil = await requireUser("Anda harus login untuk mencatat makan.");
   if (!hasil.ok) return hasil.response;
   const { userId } = hasil;
+
+  // Sebelum memanggil AI (lewat catatMakan) supaya permintaan ditolak murah.
+  const ditolak = batasiLaju("catatMakan", userId);
+  if (ditolak) return ditolak;
 
   const body = await request.json().catch(() => null);
   const parsed = mealCreateSchema.safeParse(body);
