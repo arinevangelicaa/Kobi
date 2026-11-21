@@ -87,6 +87,16 @@ describe("register (handler asli, DB sungguhan)", () => {
     }
     expect(await prisma.user.count()).toBe(0);
   });
+
+  it("nama berisi NUL ditolak 400, bukan 500 dari Postgres; tidak ada baris tersimpan", async () => {
+    const res = await registerPost(
+      post("/api/auth/register", { email: emailUnik(), password: "panjangnya-cukup", nama: "Ad\u0000nan" }),
+    );
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("VALIDATION_ERROR");
+    expect(await prisma.user.count()).toBe(0);
+  });
 });
 
 describe("profil dan target gizi", () => {

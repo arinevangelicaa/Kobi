@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { registerSchema } from "@/lib/validation/auth";
 import { checkinCreateSchema } from "@/lib/validation/checkin";
 import { mealCreateSchema } from "@/lib/validation/meal";
 import { profileUpdateSchema } from "@/lib/validation/profile";
@@ -18,7 +19,7 @@ describe("tanpaNul", () => {
 });
 
 describe("profileUpdateSchema: tanggal_lahir kalender-valid", () => {
-  it.each(["2003-02-31", "2003-13-01", "2003-00-10", "2003-04-31"])(
+  it.each(["2003-02-31", "2003-13-01", "2003-00-10", "2003-04-31", "2003-02-29"])(
     "menolak %s",
     (tanggal) => {
       const hasil = profileUpdateSchema.safeParse({ tanggal_lahir: tanggal });
@@ -62,6 +63,16 @@ describe("profileUpdateSchema: preferensi_anggaran dan teks", () => {
 describe("karakter NUL ditolak di semua teks bebas yang disimpan", () => {
   it("teks_input catat makan", () => {
     const hasil = mealCreateSchema.safeParse({ teks_input: "nasi\u0000goreng" });
+    expect(hasil.success).toBe(false);
+    if (!hasil.success) expect(hasil.error.issues[0]?.message).toBe(PESAN_NUL);
+  });
+
+  it("nama pada register", () => {
+    const hasil = registerSchema.safeParse({
+      email: "a@b.id",
+      password: "panjangnya-cukup",
+      nama: "Ad\u0000nan",
+    });
     expect(hasil.success).toBe(false);
     if (!hasil.success) expect(hasil.error.issues[0]?.message).toBe(PESAN_NUL);
   });
