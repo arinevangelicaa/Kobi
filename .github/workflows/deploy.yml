@@ -132,6 +132,9 @@ jobs:
       # Diuji lokal: build, salin static, `node server.js` membalas /api/health 200.
       - name: Siapkan paket deploy (standalone)
         run: |
+          # Gagal keras bila output standalone tidak ada; tanpa ini zip hanya
+          # berisi static/public, deploy "berhasil", lalu App Service gagal start.
+          test -f .next/standalone/server.js || { echo "standalone/server.js tidak ada" >&2; exit 1; }
           mkdir -p .next/standalone/.next
           cp -r .next/static .next/standalone/.next/static
           if [ -d public ]; then cp -r public .next/standalone/public; fi
