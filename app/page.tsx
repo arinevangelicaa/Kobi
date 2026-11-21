@@ -1,14 +1,19 @@
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center gap-6 px-6 py-16">
-      <h1 className="text-3xl font-bold">Kobi</h1>
-      <p className="text-base leading-relaxed">
-        Catat makan pakai bahasa sehari-hari, lihat kesenjangan gizi harian, dan temukan
-        menu bergizi sesuai anggaran dari warung terdekat.
-      </p>
-      <p className="text-sm opacity-70">
-        Kerangka aplikasi. Halaman fitur menyusul sesuai docs/architecture.md.
-      </p>
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-green px-6 text-cream">
+      <h1 className="text-5xl font-bold">KOBI</h1>
+      <p className="text-xs font-medium">Asisten Gizi Mahasiswa</p>
+
+      <div className="mt-6 flex w-full max-w-xs flex-col gap-3 rounded-2xl bg-yellow p-6 text-green">
+        <h2 className="text-2xl font-bold">Login</h2>
+        <p className="text-sm font-normal">Tes font regular 14px</p>
+        <p className="text-xs font-semibold">Tes semibold 12px</p>
+        <p className="text-xxs font-normal">Tes teks kecil 10px</p>
+        <button className="rounded-lg bg-green py-2 text-sm font-semibold text-bone">
+          Tombol
+        </button>
+        <span className="text-xs font-medium text-orange">Teks oranye</span>
+      </div>
     </main>
   );
 }
