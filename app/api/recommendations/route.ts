@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 
+import { denganPenangananGalat, errorResponse } from "@/lib/api";
 import { hitungJarakWaktuBanyakTujuan } from "@/lib/azure/maps";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dateKeJamStr } from "@/lib/db-time";
-import { hitungKesenjangan, jumlahkanAsupan, type EstimasiGizi, type Kesenjangan } from "@/lib/services/nutrition-gap";
+import { dapatkanGiziHarian } from "@/lib/services/daily-nutrition";
+import type { Kesenjangan } from "@/lib/services/nutrition-gap";
 import {
   apakahWarungBuka,
   dapatkanRekomendasiMenu,
@@ -13,11 +15,7 @@ import {
 } from "@/lib/services/recommendation";
 import { recommendationQuerySchema } from "@/lib/validation/recommendation";
 
-function errorResponse(status: number, code: string, message: string) {
-  return NextResponse.json({ error: { code, message } }, { status });
-}
-
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = recommendationQuerySchema.safeParse(body);
 
@@ -37,51 +35,9 @@ export async function POST(request: Request) {
   let kesenjanganGizi: Kesenjangan[] | undefined;
 
   if (userId) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const [targetDb, mealsDb] = await Promise.all([
-      prisma.nutritionTarget.findFirst({
-        where: { user_id: userId },
-        orderBy: { berlaku_sejak: "desc" },
-      }),
-      prisma.mealLog.findMany({
-        where: {
-          user_id: userId,
-          waktu_makan: { gte: today },
-        },
-        include: {
-          nutrition_estimate: true,
-        },
-      }),
-    ]);
-
-    if (targetDb) {
-      const estimasiList: EstimasiGizi[] = [];
-      for (const meal of mealsDb) {
-        if (meal.nutrition_estimate) {
-          estimasiList.push({
-            protein_g: Number(meal.nutrition_estimate.protein_g),
-            karbohidrat_g: Number(meal.nutrition_estimate.karbohidrat_g),
-            lemak_g: Number(meal.nutrition_estimate.lemak_g),
-            zat_besi_mg: Number(meal.nutrition_estimate.zat_besi_mg),
-            kalori_estimasi: meal.nutrition_estimate.kalori_estimasi,
-          });
-        }
-      }
-
-      const asupan = jumlahkanAsupan(estimasiList);
-      kesenjanganGizi = hitungKesenjangan(
-        {
-          protein_g: Number(targetDb.protein_target_g),
-          karbohidrat_g: Number(targetDb.karbohidrat_target_g),
-          lemak_g: Number(targetDb.lemak_target_g),
-          zat_besi_mg: Number(targetDb.zat_besi_target_mg),
-          kalori: targetDb.kalori_target,
-        },
-        asupan,
-      );
-    }
+    // Hari = hari kalender WIB, bukan tengah malam zona waktu proses server.
+    const gizi = await dapatkanGiziHarian(userId);
+    if (gizi.target) kesenjanganGizi = gizi.kesenjangan;
   }
 
   // Ambil semua vendor dan menu aktif dari basis data
@@ -178,3 +134,5 @@ export async function POST(request: Request) {
     recommendations: rekomendasi,
   });
 }
+
+export const POST = denganPenangananGalat(handlePost);
