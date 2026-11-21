@@ -279,6 +279,89 @@ describe("POST /api/meals/[id]/estimate", () => {
   });
 });
 
+describe("rate limit dan kunci in-flight POST /api/meals/[id]/estimate", () => {
+  const params = (id: string) => ({ params: Promise.resolve({ id }) });
+  const req = () => post(`/api/meals/${UUID}/estimate`, {});
+  const hasilSudahAda = { status: "sudah_ada", catatan };
+
+  it("429 + Retry-After setelah melewati batas; service (AI/DB) tidak dipanggil saat ditolak", async () => {
+    reprosesMock.mockResolvedValue(hasilSudahAda);
+    for (let i = 0; i < BATAS.estimasiUlang.maks; i++) {
+      expect((await estimatePost(req(), params(UUID))).status).toBe(200);
+    }
+    reprosesMock.mockClear();
+
+    const res = await estimatePost(req(), params(UUID));
+    expect(res.status).toBe(429);
+    expect((await res.json()).error.code).toBe("RATE_LIMITED");
+    const detik = Number(res.headers.get("Retry-After"));
+    expect(detik).toBeGreaterThanOrEqual(1);
+    expect(detik).toBeLessThanOrEqual(BATAS.estimasiUlang.jendelaMs / 1000);
+    expect(reprosesMock).not.toHaveBeenCalled();
+  });
+
+  it("401 tidak menyentuh pembatas maupun service", async () => {
+    authMock.mockResolvedValue(null);
+    expect((await estimatePost(req(), params(UUID))).status).toBe(401);
+    expect(reprosesMock).not.toHaveBeenCalled();
+  });
+
+  it("permintaan kedua yang bersamaan ditolak 409 tanpa memanggil service lagi", async () => {
+    let selesai: (v: unknown) => void = () => {};
+    reprosesMock.mockReturnValueOnce(new Promise((r) => (selesai = r)));
+
+    const pertama = estimatePost(req(), params(UUID));
+    // Beri kesempatan handler pertama sampai ke reprosesEstimasi.
+    await vi.waitFor(() => expect(reprosesMock).toHaveBeenCalledTimes(1));
+
+    const kedua = await estimatePost(req(), params(UUID));
+    expect(kedua.status).toBe(409);
+    expect((await kedua.json()).error.code).toBe("ESTIMATE_IN_PROGRESS");
+    expect(reprosesMock).toHaveBeenCalledTimes(1);
+
+    selesai(hasilSudahAda);
+    expect((await pertama).status).toBe(200);
+  });
+
+  it("setelah selesai, permintaan berikutnya bisa lagi", async () => {
+    reprosesMock.mockResolvedValue(hasilSudahAda);
+    expect((await estimatePost(req(), params(UUID))).status).toBe(200);
+    expect((await estimatePost(req(), params(UUID))).status).toBe(200);
+    expect(reprosesMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("kunci dilepas walau service melempar galat", async () => {
+    reprosesMock.mockRejectedValueOnce(new Error("azure meledak"));
+    expect((await estimatePost(req(), params(UUID))).status).toBe(500);
+
+    reprosesMock.mockResolvedValue(hasilSudahAda);
+    expect((await estimatePost(req(), params(UUID))).status).toBe(200);
+  });
+
+  it("kunci dilepas pada jalur 404 tidak_ditemukan", async () => {
+    reprosesMock.mockResolvedValueOnce({ status: "tidak_ditemukan" });
+    expect((await estimatePost(req(), params(UUID))).status).toBe(404);
+
+    reprosesMock.mockResolvedValue(hasilSudahAda);
+    expect((await estimatePost(req(), params(UUID))).status).toBe(200);
+  });
+
+  it("catatan lain milik pengguna yang sama tidak diblokir", async () => {
+    const LAIN = "4a3b8c1e-9d4a-4e6b-8a1c-2d5f7e9b0a14";
+    let selesai: (v: unknown) => void = () => {};
+    reprosesMock.mockReturnValueOnce(new Promise((r) => (selesai = r)));
+    const pertama = estimatePost(req(), params(UUID));
+    await vi.waitFor(() => expect(reprosesMock).toHaveBeenCalledTimes(1));
+
+    reprosesMock.mockResolvedValueOnce(hasilSudahAda);
+    const lain = await estimatePost(post(`/api/meals/${LAIN}/estimate`, {}), params(LAIN));
+    expect(lain.status).toBe(200);
+
+    selesai(hasilSudahAda);
+    await pertama;
+  });
+});
+
 describe("GET /api/nutrition/daily", () => {
   it("401 tanpa sesi", async () => {
     authMock.mockResolvedValue(null);
