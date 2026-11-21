@@ -55,6 +55,9 @@ jobs:
   integration:
     name: Tes integrasi (Postgres)
     runs-on: ubuntu-latest
+    # Job ini tidak butuh token selain membaca kode.
+    permissions:
+      contents: read
 
     services:
       postgres:
