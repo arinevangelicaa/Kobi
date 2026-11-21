@@ -62,6 +62,13 @@ async function utama(): Promise<number> {
   }
 
   console.log(`\n${formatRingkasan(hitungMetrik(hasil))}`);
+
+  // Kunci salah, 403, atau jaringan putus membuat semua baris "TANPA ESTIMASI".
+  // Jangan keluar 0 seolah evaluasi lulus padahal tidak ada hasil sama sekali.
+  if (hasil.every((h) => h.estimasi === null)) {
+    console.error("\nEvaluasi gagal: tidak ada satu pun estimasi berhasil. Cek kunci, endpoint, dan deployment Azure OpenAI.");
+    return 1;
+  }
   return 0;
 }
 
