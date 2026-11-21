@@ -12,42 +12,14 @@
 
 import { beforeEach, vi } from "vitest";
 
+import { pastikanBasisDataUji } from "./pengaman";
 import { sesiUji } from "./sesi";
 
 vi.mock("@/lib/auth", () => ({
   auth: async () => (sesiUji.userId ? { user: { id: sesiUji.userId } } : null),
 }));
 
-const HOST_LOKAL = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
-
-function pastikanBasisDataUji() {
-  const url = process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error(
-      "DATABASE_URL belum diset. Jalankan lewat scripts/test-integration.sh (Docker) " +
-        "atau set DATABASE_URL ke basis data uji lokal, mis. " +
-        "postgresql://kobi:kobi_test@127.0.0.1:54329/kobi_test.",
-    );
-  }
-
-  let alamat: URL;
-  try {
-    alamat = new URL(url);
-  } catch {
-    throw new Error("DATABASE_URL tidak dapat dibaca sebagai URL.");
-  }
-
-  const namaDb = decodeURIComponent(alamat.pathname.replace(/^\//, ""));
-  if (!HOST_LOKAL.has(alamat.hostname) || !/test/i.test(namaDb)) {
-    throw new Error(
-      `Tes integrasi menolak DATABASE_URL ini (host "${alamat.hostname}", basis data "${namaDb}"): ` +
-        "hanya host lokal dengan nama basis data yang memuat 'test' yang diizinkan, " +
-        "karena tes mengosongkan tabel.",
-    );
-  }
-}
-
-pastikanBasisDataUji();
+pastikanBasisDataUji(process.env.DATABASE_URL);
 
 // Tidak ada kunci Azure Maps: hitungJarakWaktuBanyakTujuan mengembalikan Map
 // kosong sehingga rekomendasi memakai Haversine (`sumber_jarak: "estimasi"`).

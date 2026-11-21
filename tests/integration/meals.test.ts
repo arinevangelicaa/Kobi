@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { POST as estimatePost } from "@/app/api/meals/[id]/estimate/route";
 import { GET as mealsGet, POST as mealsPost } from "@/app/api/meals/route";
@@ -180,10 +180,19 @@ describe("catat makan: estimasi AI berhasil", () => {
     await penggunaDenganTarget();
     pasangAzureOpenAI();
 
-    const dibuat = await (await catat({ teks_input: "nasi uduk" })).json();
-    const badan = await (await mealsGet(get("/api/meals"))).json();
+    // Waktu dibekukan di tengah hari WIB: POST (default "sekarang") dan GET
+    // ("hari ini") tidak boleh terbelah oleh pergantian hari saat tes jalan
+    // tepat sekitar 00:00 WIB. Hanya Date yang dipalsukan.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-21T05:00:00Z")); // 12:00 WIB
+    try {
+      const dibuat = await (await catat({ teks_input: "nasi uduk" })).json();
+      const badan = await (await mealsGet(get("/api/meals"))).json();
 
-    expect(badan.meals.map((m: { id: string }) => m.id)).toContain(dibuat.meal.id);
+      expect(badan.meals.map((m: { id: string }) => m.id)).toContain(dibuat.meal.id);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("401 tanpa sesi, 400 untuk input salah; tidak ada yang tersimpan dan Azure tidak dipanggil", async () => {
