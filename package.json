@@ -14,6 +14,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "eval:estimasi": "tsx scripts/eval-estimasi.ts",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "dependencies": {
