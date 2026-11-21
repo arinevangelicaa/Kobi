@@ -323,6 +323,9 @@ export async function reprosesEstimasi(
       include: { nutrition_estimate: true },
     });
     if (!terbaru) return { status: "tidak_ditemukan" };
+    // P2014 adalah kode umum pelanggaran relasi wajib. Hanya anggap "kalah
+    // balapan" bila estimasi pemenang benar-benar ada; selain itu galat asli.
+    if (!terbaru.nutrition_estimate) throw galat;
     return { status: "sudah_ada", catatan: keCatatanDto(terbaru) };
   }
 
