@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 
+import { denganPenangananGalat, errorResponse } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { hitungTargetGizi } from "@/lib/services/nutrition-target";
 import { profileUpdateSchema } from "@/lib/validation/profile";
 
-function errorResponse(status: number, code: string, message: string) {
-  return NextResponse.json({ error: { code, message } }, { status });
-}
-
-export async function GET() {
+async function handleGet() {
   const session = await auth();
   const userId = session?.user?.id;
 
@@ -63,7 +60,7 @@ export async function GET() {
   });
 }
 
-export async function PATCH(request: Request) {
+async function handlePatch(request: Request) {
   const session = await auth();
   const userId = session?.user?.id;
 
@@ -174,3 +171,6 @@ export async function PATCH(request: Request) {
       : null,
   });
 }
+
+export const GET = denganPenangananGalat(handleGet);
+export const PATCH = denganPenangananGalat(handlePatch);
