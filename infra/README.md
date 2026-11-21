@@ -77,7 +77,7 @@ Setelah lulus, hapus banner "BELUM DIVALIDASI" di berkas ini dan di
 | Sumber daya | Tipe (API version) | SKU / ukuran |
 |---|---|---|
 | App Service Plan | `Microsoft.Web/serverfarms@2023-12-01` | Linux, B1 (parameter `appServiceSkuName`) |
-| Web App | `Microsoft.Web/sites@2023-12-01` | Node 22 LTS, HTTPS only, TLS 1.2, FTP mati, managed identity sistem, startup `npm run start` |
+| Web App | `Microsoft.Web/sites@2023-12-01` | Node 22 LTS, HTTPS only, TLS 1.2, FTP mati, managed identity sistem, startup `node server.js` (paket standalone) |
 | PostgreSQL Flexible Server | `Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01` | Burstable `Standard_B1ms`, PG 16, 32 GB, tanpa HA, SSL wajib, database `kobi` |
 | Azure OpenAI | `Microsoft.CognitiveServices/accounts@2024-10-01` (`kind: OpenAI`) | S0 + deployment model (parameter) |
 | Azure Maps | `Microsoft.Maps/accounts@2023-06-01` | Gen2 (`G2`), lokasi `global` |
@@ -266,10 +266,11 @@ Semuanya belum diuji karena tidak ada subscription dan tidak ada `az`:
 - `sslmode=require` pada `pg`/`@prisma/adapter-pg`: versi `pg` terbaru
   memperlakukannya setara `verify-full` dan memeriksa sertifikat; seharusnya
   lolos karena rantai sertifikat Azure dipercaya Node, tetapi belum dicoba.
-- Paket deploy penuh dengan `node_modules` dan `npm run start` di App Service
-  (termasuk binary `@node-rs/argon2` untuk linux-x64 dan pemuatan
-  `next.config.ts`). Setelah C4 (`output: "standalone"`) selesai, paket dan
-  perintah startup sebaiknya diganti (`node server.js`).
+- Paket standalone (`node server.js`) di App Service. Lokal sudah diuji: server
+  hasil `output: "standalone"` + `.next/static` yang disalin manual menjawab
+  `/api/health` 200, dan binding `@node-rs/argon2-linux-x64-gnu` ikut terbawa.
+  Yang belum teruji: perilaku di App Service sungguhan (`PORT`/`HOSTNAME` yang
+  disetel eksplisit di app settings, startup command `node server.js`).
 - Ketepatan peran Contributor tingkat resource group untuk semua langkah
   workflow.
 - Apakah `what-if` memasking nilai Application Settings turunan parameter
