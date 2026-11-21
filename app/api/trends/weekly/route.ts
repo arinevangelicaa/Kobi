@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { denganPenangananGalat, errorResponse, requireUser } from "@/lib/api";
 import { narasiPolaDariAgregat } from "@/lib/azure/openai";
 import { prisma } from "@/lib/db";
+import { batasiLaju } from "@/lib/rate-limit";
 import {
   DISCLAIMER_TREN,
   ambilCheckinMinggu,
@@ -52,11 +53,17 @@ import { trendsWeeklyQuerySchema } from "@/lib/validation/trends";
  * mengisi check-in, bukan grafik pola; `narasi.sumber` selalu "template".
  *
  * Galat: 400 `VALIDATION_ERROR` (minggu tidak valid), 401 `UNAUTHORIZED`,
+ * 429 `RATE_LIMITED` (header `Retry-After` dalam detik; batas
+ * `BATAS.trenMingguan` di lib/rate-limit.ts),
  * 503 `DB_UNAVAILABLE`, 500 `INTERNAL_ERROR`.
  */
 async function handleGet(request: Request) {
   const hasil = await requireUser("Anda harus login untuk melihat tren.");
   if (!hasil.ok) return hasil.response;
+
+  // Sebelum DB dan model narasi, supaya permintaan ditolak murah.
+  const ditolak = batasiLaju("trenMingguan", hasil.userId);
+  if (ditolak) return ditolak;
 
   const { searchParams } = new URL(request.url);
   const parsed = trendsWeeklyQuerySchema.safeParse({
