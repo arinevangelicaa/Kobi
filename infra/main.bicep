@@ -401,8 +401,9 @@ resource plan 'Microsoft.Web/serverfarms@2023-12-01' = {
 // API 2023-12-01. HTTPS only, TLS minimum 1.2, FTP dimatikan, managed identity
 // sistem aktif (belum ada role assignment: aplikasi memakai connection string;
 // identity disiapkan untuk migrasi ke Key Vault / akses tanpa kunci nanti).
-// Paket aplikasi sudah dibangun di CI (SCM_DO_BUILD_DURING_DEPLOYMENT=false),
-// jadi App Service hanya menjalankan `npm run start`.
+// Paket aplikasi sudah dibangun di CI (SCM_DO_BUILD_DURING_DEPLOYMENT=false)
+// sebagai paket Next.js standalone (lihat .github/workflows/deploy.yml), jadi
+// App Service hanya menjalankan `node server.js`.
 resource webApp 'Microsoft.Web/sites@2023-12-01' = {
   name: webAppName
   location: location
@@ -418,7 +419,7 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
     siteConfig: {
       linuxFxVersion: 'NODE|22-lts'
       alwaysOn: appServiceSkuName != 'F1'
-      appCommandLine: 'npm run start'
+      appCommandLine: 'node server.js'
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
       http20Enabled: true
@@ -432,6 +433,18 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
           // Port yang didengarkan kontainer Node di App Service Linux.
           name: 'WEBSITES_PORT'
           value: '8080'
+        }
+        {
+          // Server standalone Next.js membaca PORT dan HOSTNAME dari environment.
+          // PORT disetel eksplisit sama dengan WEBSITES_PORT dan HOSTNAME=0.0.0.0
+          // supaya tidak bergantung pada apa yang diisi App Service (BELUM
+          // DIVERIFIKASI di portal Azure setelah resource ada).
+          name: 'PORT'
+          value: '8080'
+        }
+        {
+          name: 'HOSTNAME'
+          value: '0.0.0.0'
         }
         {
           // Auth.js v5 di belakang proxy App Service perlu mempercayai header host.

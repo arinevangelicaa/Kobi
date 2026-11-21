@@ -124,13 +124,21 @@ jobs:
             --rule-name "gha-${GITHUB_RUN_ID}" \
             --yes || echo "Aturan firewall gha-${GITHUB_RUN_ID} gagal dihapus; hapus manual."
 
-      # Paket: hasil build + node_modules + Prisma Client hasil generate.
-      # node_modules sengaja tidak di-prune: next.config.ts dimuat saat
-      # `next start` dan membutuhkan typescript (devDependency). Bila tugas C4
-      # (output: "standalone") sudah masuk, ganti paket menjadi isi
-      # .next/standalone + .next/static + public agar jauh lebih kecil.
-      - name: Siapkan paket deploy
-        run: zip -qr release.zip . -x '.git/*' -x '.github/*' -x 'release.zip'
+      # Paket standalone (next.config.ts: output "standalone"). Isi
+      # .next/standalone sudah memuat server.js dan node_modules hasil tracing
+      # (termasuk binding native @node-rs/argon2); Next TIDAK menyalin
+      # .next/static dan public/, jadi disalin manual ke dalamnya. Startup
+      # command di App Service: `node server.js` (infra/main.bicep).
+      # Diuji lokal: build, salin static, `node server.js` membalas /api/health 200.
+      - name: Siapkan paket deploy (standalone)
+        run: |
+          # Gagal keras bila output standalone tidak ada; tanpa ini zip hanya
+          # berisi static/public, deploy "berhasil", lalu App Service gagal start.
+          test -f .next/standalone/server.js || { echo "standalone/server.js tidak ada" >&2; exit 1; }
+          mkdir -p .next/standalone/.next
+          cp -r .next/static .next/standalone/.next/static
+          if [ -d public ]; then cp -r public .next/standalone/public; fi
+          (cd .next/standalone && zip -qr ../../release.zip .)
 
       - name: Deploy ke App Service
         uses: azure/webapps-deploy@v3
