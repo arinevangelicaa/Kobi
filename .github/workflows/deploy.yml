@@ -32,6 +32,11 @@ jobs:
   deploy:
     name: Build, migrate, deploy
     runs-on: ubuntu-latest
+    # workflow_dispatch bisa dipicu dari branch mana pun, sedangkan job ini
+    # memigrasi basis data produksi dan men-deploy kode. Hanya `main` yang boleh.
+    # Di GitHub, environment `production` juga perlu deployment branch policy
+    # `main` (dan sebaiknya required reviewer); lihat infra/README.md.
+    if: github.ref == 'refs/heads/main'
     # Environment `production` menentukan subject federated credential
     # (repo:<owner>/<repo>:environment:production) dan tempat secret
     # DATABASE_URL disimpan.
@@ -54,6 +59,18 @@ jobs:
       # (lib/generated/prisma) dan dibutuhkan oleh build.
       - name: Generate Prisma Client
         run: npm run db:generate
+
+      # Workflow ini terpisah dari CI (main.yml), jadi `needs` tidak bisa dipakai.
+      # Jalankan gerbang yang sama di sini supaya commit yang belum lolos tidak
+      # sampai ke migrasi dan deploy (arsitektur bagian 14).
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build
