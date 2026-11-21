@@ -7,13 +7,75 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-function createPrismaClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL;
+/** Batas koneksi per instance bila DATABASE_POOL_MAX tidak diisi atau tidak valid. */
+export const POOL_MAX_DEFAULT = 5;
+
+export type KonfigurasiPool = {
+  connectionString: string;
+  /** Jumlah koneksi maksimum di pool pg untuk instance ini. */
+  max: number;
+  /** Nilai `sslmode` dari DATABASE_URL (null bila tidak ada atau URL tak terbaca). */
+  sslmode: string | null;
+  /** Catatan konfigurasi yang patut diketahui operator, bukan kegagalan. */
+  peringatan: string[];
+};
+
+function bacaSslmode(connectionString: string): string | null {
+  try {
+    return new URL(connectionString).searchParams.get("sslmode");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Membaca konfigurasi koneksi basis data dari environment. Fungsi murni supaya
+ * mudah dites.
+ *
+ * SSL tidak diatur di sini: driver `pg` membaca `sslmode` langsung dari
+ * DATABASE_URL (mis. `?sslmode=require`) dan memverifikasi sertifikat server.
+ * Kode ini sengaja tidak pernah menyetel `rejectUnauthorized: false`.
+ */
+export function bacaKonfigurasiPool(
+  env: Record<string, string | undefined>,
+): KonfigurasiPool {
+  const connectionString = env.DATABASE_URL;
   if (!connectionString) {
     throw new Error("DATABASE_URL belum diset. Salin .env.example menjadi .env.");
   }
 
-  const adapter = new PrismaPg({ connectionString });
+  const peringatan: string[] = [];
+
+  let max = POOL_MAX_DEFAULT;
+  const mentah = env.DATABASE_POOL_MAX?.trim();
+  if (mentah) {
+    const angka = Number(mentah);
+    if (Number.isInteger(angka) && angka >= 1) {
+      max = angka;
+    } else {
+      peringatan.push(
+        `DATABASE_POOL_MAX="${mentah}" tidak valid (harus bilangan bulat >= 1); memakai ${POOL_MAX_DEFAULT}.`,
+      );
+    }
+  }
+
+  const sslmode = bacaSslmode(connectionString);
+  if (env.NODE_ENV === "production" && (sslmode === null || sslmode === "disable")) {
+    peringatan.push(
+      "DATABASE_URL tanpa SSL di produksi; tambahkan ?sslmode=require (docs/architecture.md bagian 5.4).",
+    );
+  }
+
+  return { connectionString, max, sslmode, peringatan };
+}
+
+function createPrismaClient(): PrismaClient {
+  const { connectionString, max, peringatan } = bacaKonfigurasiPool(process.env);
+  for (const catatan of peringatan) {
+    process.emitWarning(catatan, { code: "KOBI_DB_CONFIG" });
+  }
+
+  const adapter = new PrismaPg({ connectionString, max });
   return new PrismaClient({ adapter });
 }
 
