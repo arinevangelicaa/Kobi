@@ -68,6 +68,14 @@ describe("register (handler asli, DB sungguhan)", () => {
     expect(await prisma.user.count({ where: { email } })).toBe(1);
   });
 
+  it("asumsi tiruan terbukti: email duplikat di Postgres sungguhan memberi galat Prisma berkode P2002", async () => {
+    const email = emailUnik("p2002");
+    await prisma.user.create({ data: { email, nama: "Satu" } });
+
+    // Kode yang dibaca handler register untuk menangkap balapan.
+    await expect(prisma.user.create({ data: { email, nama: "Dua" } })).rejects.toMatchObject({ code: "P2002" });
+  });
+
   it("400 untuk email, password pendek, dan body bukan JSON; tidak ada baris tersimpan", async () => {
     const a = await registerPost(post("/api/auth/register", { email: "bukan-email", password: "panjangnya-cukup", nama: "X" }));
     const b = await registerPost(post("/api/auth/register", { email: emailUnik(), password: "pendek", nama: "X" }));
