@@ -146,17 +146,33 @@ describe("POST /api/recommendations (Haversine karena Azure Maps tidak dikonfigu
     expect(await prisma.recommendation.count()).toBe(0);
   });
 
-  it("jam operasional memakai WIB: pukul 18:00 WIB warung malam ikut, warung 08-21 yang jauh tetap tidak", async () => {
+  it("jam operasional memakai WIB: warung yang tutup disaring, yang buka ikut, tanpa jam dianggap buka", async () => {
     const user = await buatUser();
     masukSebagai(user.id);
     await siapkanKatalog();
 
-    // 18:00 WIB = 11:00 UTC.
-    const badan = await (await minta({ waktu: "2026-11-21T11:00:00.000Z" })).json();
-    const warung = badan.recommendations.map((r: { nama_warung: string }) => r.nama_warung);
+    const warungPada = async (waktu: string) => {
+      const badan = await (await minta({ waktu, jumlah: 20 })).json();
+      return new Set<string>(badan.recommendations.map((r: { nama_warung: string }) => r.nama_warung));
+    };
 
-    expect(warung).toContain("Warung Malam");
-    expect(warung).not.toContain("Warung Jauh");
+    // Warteg Dekat 08:00-21:00, Warung Malam 17:00-23:00, Warung 24 Jam tanpa jam.
+    // Warung Jauh selalu gugur karena jarak, bukan jam, jadi tidak dipakai sebagai bukti.
+    const siang = await warungPada("2026-11-21T05:00:00.000Z"); // 12:00 WIB
+    expect(siang).toContain("Warteg Dekat");
+    expect(siang).toContain("Warung 24 Jam");
+    expect(siang).not.toContain("Warung Malam"); // belum buka
+
+    const sore = await warungPada("2026-11-21T11:00:00.000Z"); // 18:00 WIB
+    expect(sore).toContain("Warteg Dekat");
+    expect(sore).toContain("Warung Malam");
+
+    const malam = await warungPada("2026-11-21T15:00:00.000Z"); // 22:00 WIB
+    expect(malam).not.toContain("Warteg Dekat"); // sudah tutup pukul 21:00
+    expect(malam).toContain("Warung Malam");
+    expect(malam).toContain("Warung 24 Jam");
+
+    for (const s of [siang, sore, malam]) expect(s).not.toContain("Warung Jauh");
   });
 
   it("tanpa sesi tetap berfungsi tetapi tidak menyimpan riwayat", async () => {
