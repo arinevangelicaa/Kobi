@@ -21,6 +21,24 @@ beforeEach(() => {
   resetPembatasLaju();
 });
 
+describe("periksaBatas: jam mundur dan urutan pemakaian", () => {
+  it("jam mundur tidak mengunci pengguna sampai jam menyusul", () => {
+    for (let i = 0; i < 3; i++) periksaBatas("b", "u1", KONFIG, T0 + 100_000 + i);
+    expect(periksaBatas("b", "u1", KONFIG, T0 + 100_010).diizinkan).toBe(false);
+
+    // Jam dikoreksi mundur 100 detik: catatan "masa depan" dibuang, bukan dikunci.
+    expect(periksaBatas("b", "u1", KONFIG, T0)).toEqual({ diizinkan: true });
+  });
+
+  it("ulangiDalamDetik tidak pernah melebihi jendela walau jam mundur", () => {
+    for (let i = 0; i < 3; i++) periksaBatas("b", "u1", KONFIG, T0 + 100_000 + i);
+    for (let i = 0; i < 3; i++) periksaBatas("b", "u1", KONFIG, T0 + i);
+    const hasil = periksaBatas("b", "u1", KONFIG, T0 + 10);
+    expect(hasil.diizinkan).toBe(false);
+    if (!hasil.diizinkan) expect(hasil.ulangiDalamDetik).toBeLessThanOrEqual(KONFIG.jendelaMs / 1000);
+  });
+});
+
 describe("periksaBatas", () => {
   it("meloloskan permintaan di bawah batas", () => {
     for (let i = 0; i < 3; i++) {

@@ -73,6 +73,12 @@ function pangkas(entri: Entri, sekarang: number) {
   let i = 0;
   while (i < entri.waktu.length && (entri.waktu[i] as number) <= batasLama) i++;
   if (i > 0) entri.waktu.splice(0, i);
+
+  // Jam mundur (mis. sistem dikoreksi): waktu yang tercatat di "masa depan"
+  // tidak boleh mengunci pengguna sampai jam menyusul. Buang dari ujung.
+  while (entri.waktu.length > 0 && (entri.waktu[entri.waktu.length - 1] as number) > sekarang) {
+    entri.waktu.pop();
+  }
 }
 
 function sapu(sekarang: number) {
@@ -89,8 +95,9 @@ function sapu(sekarang: number) {
     }
   }
 
-  // Batas keras: bila masih berlebih, buang kunci tertua (Map mengiterasi
-  // menurut urutan penyisipan). Murah karena hanya menyentuh kelebihannya.
+  // Batas keras: bila masih berlebih, buang kunci yang paling lama tidak
+  // dipakai (Map mengiterasi menurut urutan sisip; periksaBatas memindahkan
+  // kunci yang dipakai ke ujung). Murah karena hanya menyentuh kelebihannya.
   let kelebihan = penyimpanan.size - MAKS_KUNCI;
   if (kelebihan > 0) {
     for (const kunci of penyimpanan.keys()) {
@@ -124,11 +131,16 @@ export function periksaBatas(
     // Slot pertama bebas saat permintaan tertua keluar dari jendela.
     const bebasPada = (entri.waktu[entri.waktu.length - maks] as number) + jendelaMs;
     const ulangiDalamDetik = Math.max(1, Math.ceil((bebasPada - sekarang) / 1000));
-    if (!penyimpanan.has(kunci)) penyimpanan.set(kunci, entri);
+    // delete + set memindahkan kunci ke ujung (paling baru dipakai), supaya
+    // eviksi MAKS_KUNCI membuang yang paling lama tidak aktif, bukan yang
+    // paling dulu disisipkan.
+    penyimpanan.delete(kunci);
+    penyimpanan.set(kunci, entri);
     return { diizinkan: false, ulangiDalamDetik };
   }
 
   entri.waktu.push(sekarang);
+  penyimpanan.delete(kunci);
   penyimpanan.set(kunci, entri);
   return { diizinkan: true };
 }
