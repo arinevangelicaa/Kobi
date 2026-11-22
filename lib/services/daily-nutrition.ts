@@ -10,6 +10,7 @@
 import type { PrismaClient } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { rentangHariWIB } from "@/lib/time-wib";
+import { apakahKeyakinanRendah } from "@/lib/services/meal";
 import {
   hitungKesenjangan,
   jumlahkanAsupan,
@@ -32,6 +33,8 @@ export interface GiziHarian {
   jumlah_catatan: number;
   /** Catatan yang belum punya estimasi (Azure OpenAI gagal), belum ikut dihitung. */
   jumlah_tanpa_estimasi: number;
+  /** Catatan berestimasi dengan keyakinan rendah, tetap ikut dihitung. */
+  jumlah_keyakinan_rendah: number;
 }
 
 /**
@@ -69,9 +72,13 @@ export async function dapatkanGiziHarian(
     }));
 
   const estimasi: EstimasiGizi[] = [];
+  let jumlahKeyakinanRendah = 0;
   for (const meal of catatan) {
     const e = meal.nutrition_estimate;
     if (!e) continue;
+    if (apakahKeyakinanRendah(Number(e.tingkat_keyakinan))) {
+      jumlahKeyakinanRendah++;
+    }
     estimasi.push({
       protein_g: Number(e.protein_g),
       karbohidrat_g: Number(e.karbohidrat_g),
@@ -99,5 +106,6 @@ export async function dapatkanGiziHarian(
     kesenjangan: target ? hitungKesenjangan(target, asupan) : [],
     jumlah_catatan: catatan.length,
     jumlah_tanpa_estimasi: catatan.length - estimasi.length,
+    jumlah_keyakinan_rendah: jumlahKeyakinanRendah,
   };
 }

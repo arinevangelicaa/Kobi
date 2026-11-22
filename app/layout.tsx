@@ -20,7 +20,11 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id" className={`${poppins.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="bg-bone">
+        <div className="mx-auto flex min-h-dvh w-full max-w-app flex-col shadow-xl">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }

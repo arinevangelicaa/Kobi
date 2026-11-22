@@ -17,7 +17,8 @@ import { dailyQuerySchema } from "@/lib/validation/daily";
  *       "asupan": { "protein_g", "karbohidrat_g", "lemak_g", "zat_besi_mg", "kalori" },
  *       "kesenjangan": [ ... ],   // terurut dari yang paling kurang; [] bila target null
  *       "jumlah_catatan": number,
- *       "jumlah_tanpa_estimasi": number   // catatan tertunda, belum ikut asupan
+ *       "jumlah_tanpa_estimasi": number,   // catatan tertunda, belum ikut asupan
+ *       "jumlah_keyakinan_rendah": number // catatan berestimasi, tetap ikut asupan
  *     }
  *   }
  *   Bentuk `kesenjangan` mengikuti `Kesenjangan` di lib/services/nutrition-gap.ts.

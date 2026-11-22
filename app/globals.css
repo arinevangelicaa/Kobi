@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme inline {
+  --container-app: 430px;
   --color-green-light: #DCEEDC;
   --color-cream: #FFF8E7;
   --color-bone: #FFFCF6;

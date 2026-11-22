@@ -1,14 +1,14 @@
 import AuthHeader from "@/components/auth/authheader";
 import AuthFooter from "@/components/auth/authfooter";
+import CredentialsForm from "@/components/auth/credentials-form";
 import GoogleButton from "@/components/auth/googlebutton";
 
-import Button from "@/components/ui/button";
 import Divider from "@/components/ui/divider";
 import Input from "@/components/ui/input";
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-yellow">
+    <main className="flex-1 bg-yellow">
       <AuthHeader />
 
       <section className="mx-auto max-w-sm px-6 py-8">
@@ -16,17 +16,23 @@ export default function LoginPage() {
           Login
         </h2>
 
-        <form className="space-y-3">
+        <CredentialsForm mode="login">
           <Input
-            type="text"
-            placeholder="Username"
+            type="email"
+            name="email"
+            aria-label="Email"
+            placeholder="Email"
             autoComplete="username"
+            required
           />
 
           <Input
             type="password"
+            name="password"
+            aria-label="Password"
             placeholder="Password"
             autoComplete="current-password"
+            required
           />
 
           <div className="flex justify-end">
@@ -38,10 +44,7 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <Button type="submit">
-            Login
-          </Button>
-        </form>
+        </CredentialsForm>
 
         <Divider />
 

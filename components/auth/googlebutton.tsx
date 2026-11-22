@@ -1,7 +1,7 @@
 import Button from "../ui/button";
 import { FcGoogle } from "react-icons/fc";
 
-export default function GoogleButton() {
+export default function GoogleButton({ mode = "signup" }: { mode?: "login" | "signup" }) {
   return (
     <Button variant="outline">
 
@@ -10,7 +10,7 @@ export default function GoogleButton() {
         <FcGoogle size={22} aria-hidden="true" />
   
         <span>
-          Sign Up with Google
+          {mode === "login" ? "Log In with Google" : "Sign Up with Google"}
         </span>
 
       </div>

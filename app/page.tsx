@@ -1,6 +1,6 @@
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-green px-6 text-cream">
+    <main className="flex flex-1 flex-col items-center justify-center gap-4 bg-green px-6 text-cream">
       <h1 className="text-5xl font-bold">KOBI</h1>
       <p className="text-xs font-medium">Asisten Gizi Mahasiswa</p>
 

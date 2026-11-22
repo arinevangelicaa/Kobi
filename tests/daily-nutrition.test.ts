@@ -63,17 +63,22 @@ describe("dapatkanGiziHarian", () => {
     expect(protein?.kurang).toBe(25);
   });
 
-  it("catatan tanpa estimasi dihitung terpisah dan tidak ikut akumulasi", async () => {
+  it("menandai estimasi rendah dan hanya mengecualikan catatan tanpa estimasi dari asupan", async () => {
     const { db } = buatDb({
       target: targetRow(),
-      meals: [mealRow(estimasiRow(20)), mealRow(null)],
+      meals: [
+        mealRow({ ...estimasiRow(20), tingkat_keyakinan: 0.49 }),
+        mealRow({ ...estimasiRow(10), tingkat_keyakinan: 0.5 }),
+        mealRow(null),
+      ],
     });
 
     const gizi = await dapatkanGiziHarian("u1", "2026-11-21", db);
 
-    expect(gizi.jumlah_catatan).toBe(2);
+    expect(gizi.jumlah_catatan).toBe(3);
     expect(gizi.jumlah_tanpa_estimasi).toBe(1);
-    expect(gizi.asupan.protein_g).toBe(20);
+    expect(gizi.jumlah_keyakinan_rendah).toBe(1);
+    expect(gizi.asupan.protein_g).toBe(30);
   });
 
   it("query memakai batas hari WIB dan hanya milik pengguna itu", async () => {
