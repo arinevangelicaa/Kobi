@@ -10,5 +10,5 @@ export default auth;
 
 export const config = {
   // Kecualikan aset statis Next.js dan favicon dari pemeriksaan sesi.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|assets/|favicon.ico).*)"],
 };

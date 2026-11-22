@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme inline {
+  --container-app: 430px;
   --color-green-light: #DCEEDC;
   --color-cream: #FFF8E7;
   --color-bone: #FFFCF6;
@@ -15,4 +16,37 @@ body {
   background: var(--color-bone);
   color: var(--color-green);
   font-family: var(--font-sans);
+}
+
+@media (max-height: 750px) and (max-width: 430px) {
+  .auth-header-content {
+    padding-top: 2rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .auth-header-mascot {
+    width: 10rem;
+    height: 10rem;
+    margin-top: 1rem;
+  }
+
+  .signup-form-section {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .signup-title {
+    top: -0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 2rem;
+    line-height: 2.25rem;
+  }
+
+  .signup-form-section input {
+    height: 3rem;
+  }
+
+  .signup-form-section button {
+    height: 2.75rem;
+  }
 }
