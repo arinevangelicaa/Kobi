@@ -1,11 +1,16 @@
 import { z } from "zod";
 
+import { PESAN_NUL, tanpaNul } from "@/lib/validation/umum";
+import { apakahTanggalValid } from "@/lib/validation/meal";
+
 export const profileUpdateSchema = z
   .object({
-    nama: z.string().trim().min(1, "Nama tidak boleh kosong.").max(100).optional(),
+    nama: z.string().trim().min(1, "Nama tidak boleh kosong.").max(100).refine(tanpaNul, PESAN_NUL).optional(),
     tanggal_lahir: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal lahir harus YYYY-MM-DD.")
+      // Regex saja meloloskan 2003-02-31 (V8 menggulirkannya ke 2003-03-03) dan 2003-13-01.
+      .refine(apakahTanggalValid, "Tanggal lahir tidak valid.")
       .optional()
       .nullable(),
     jenis_kelamin: z
@@ -28,6 +33,8 @@ export const profileUpdateSchema = z
       .number()
       .int("Preferensi anggaran harus bilangan bulat.")
       .min(0, "Anggaran tidak boleh negatif.")
+      // Kolom INT4; sama dengan batas total_harga di lib/validation/meal.ts.
+      .max(100_000_000, "Anggaran terlalu besar.")
       .optional()
       .nullable(),
   })

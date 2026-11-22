@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 
+import { denganPenangananGalat, errorResponse } from "@/lib/api";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { registerSchema } from "@/lib/validation/auth";
 
-function errorResponse(status: number, code: string, message: string) {
-  return NextResponse.json({ error: { code, message } }, { status });
-}
-
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = registerSchema.safeParse(body);
 
@@ -50,3 +47,5 @@ export async function POST(request: Request) {
     throw error;
   }
 }
+
+export const POST = denganPenangananGalat(handlePost);

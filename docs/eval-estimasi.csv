@@ -1,0 +1,45 @@
+# ACUAN KASAR, BUKAN DATA LABORATORIUM. Nilai di bawah adalah perkiraan manual satu porsi lazim
+# warung/kaki lima (berdasarkan kisaran Tabel Komposisi Pangan Indonesia dan label produk umum),
+# dengan selisih wajar antar penjual 20-30 persen. Pakai untuk melihat urutan besaran dan pola
+# salah sistematis model, bukan untuk mengklaim akurasi absolut. Satuan: kalori kkal, protein/
+# karbohidrat/lemak gram, zat besi mg. Baris berawalan # diabaikan oleh scripts/eval-estimasi.ts.
+teks_input,kalori,protein_g,karbohidrat_g,lemak_g,zat_besi_mg
+nasi goreng telur ceplok 1 piring,580,16,74,24,2.5
+nasi putih ayam goreng paha sambal,620,32,68,22,2.0
+nasi pecel tempe peyek,520,17,70,19,3.5
+nasi gudeg telur ayam,650,28,80,24,3.0
+nasi kucing 2 bungkus teri,300,10,48,7,1.5
+indomie goreng telur,500,14,58,24,2.0
+mie ayam bakso 1 mangkok,560,22,70,21,3.0
+soto ayam pakai nasi,450,24,52,15,2.5
+bakso kuah 1 mangkok,380,20,40,15,3.0
+nasi rames telur balado tahu,600,22,78,22,3.0
+lontong sayur,400,10,62,12,2.0
+gado-gado pakai lontong,480,17,52,22,3.5
+pecel lele nasi putih,650,30,70,26,3.0
+ayam geprek nasi,700,30,75,30,2.5
+sate ayam 10 tusuk dan lontong,520,32,45,22,2.0
+bubur ayam,360,15,55,9,1.5
+nasi uduk ayam goreng,650,28,75,25,2.5
+martabak telur 1 porsi,480,17,36,29,2.5
+mendoan 3 potong,270,8,24,16,1.5
+tahu isi 3 biji gorengan,240,7,20,15,1.2
+pisang goreng 3 potong,330,3,48,14,0.8
+es teh manis 1 gelas,90,0,22,0,0
+es teh tawar,2,0,0.5,0,0.1
+kopi susu es 1 gelas,150,3,22,5,0.3
+es jeruk peras,100,1,24,0,0.2
+nasi sayur lodeh tempe,430,12,68,12,3.0
+nasi telur dadar kecap,500,15,62,21,2.5
+mie goreng jawa,540,15,70,22,2.5
+kwetiau goreng,520,17,68,20,2.5
+siomay batagor 1 porsi,450,18,40,25,2.0
+cilok 10 butir bumbu kacang,300,6,45,10,1.0
+seblak ceker,420,14,42,22,2.5
+nasi padang rendang,800,30,75,40,4.0
+nasi tahu tempe bacem 4 potong,450,18,62,14,3.0
+roti bakar coklat keju,380,9,45,18,1.5
+nasi kuning telur suwir,480,15,70,15,2.0
+nasi putih oseng kangkung,380,8,70,8,3.0
+bakwan jagung 3 buah,270,5,30,14,1.0
+nasi sambal tempe goreng,470,14,70,14,2.5

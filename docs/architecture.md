@@ -591,6 +591,7 @@ Sela waktu antar kuliah dibaca dari `class_schedules` bila pengguna tidak mengis
 
 ```
 DATABASE_URL
+DATABASE_POOL_MAX
 AUTH_SECRET
 AUTH_GOOGLE_ID
 AUTH_GOOGLE_SECRET
@@ -601,11 +602,37 @@ AZURE_MAPS_KEY
 AZURE_DOCINTEL_ENDPOINT
 AZURE_DOCINTEL_KEY
 AZURE_STORAGE_CONNECTION_STRING
+APPLICATIONINSIGHTS_CONNECTION_STRING
 ```
+
+`DATABASE_POOL_MAX` (opsional, bilangan bulat >= 1, default 5) membatasi koneksi pool Postgres per instance; total koneksi = nilai ini x jumlah instance App Service, jadi jaga di bawah `max_connections` server. Nilai tidak valid diabaikan (kembali ke 5) dengan peringatan. Di produksi, `DATABASE_URL` harus memakai `?sslmode=require`: driver `pg` membaca `sslmode` dari URL dan memverifikasi sertifikat server, dan kode tidak pernah mematikan verifikasi itu. `lib/db.ts` memberi peringatan bila SSL tidak aktif saat `NODE_ENV=production`. `APPLICATIONINSIGHTS_CONNECTION_STRING` opsional; lihat catatan observability di bawah.
+
+**Runtime produksi (App Service)**
+
+`next.config.ts` memakai `output: "standalone"`, sehingga `next build` menghasilkan `.next/standalone/server.js` beserta dependensi yang dipakai saja. Perintah startup:
+
+```
+node .next/standalone/server.js
+```
+
+Mode standalone tidak menyalin `.next/static` maupun `public/`, jadi artefak deploy harus menyalinnya sendiri ke dalam folder standalone sebelum dijalankan:
+
+```
+cp -r .next/static .next/standalone/.next/static
+cp -r public .next/standalone/public   # hanya bila folder public ada
+```
+
+Server membaca `PORT` dan `HOSTNAME` dari environment (pembacaan `PORT` oleh server standalone sudah dicek di kode Next.js; `infra/main.bicep` menyetel `WEBSITES_PORT`, dan apakah App Service juga mengisi `PORT` perlu dicek di portal Azure setelah resource ada). `npm start` (`next start`) tetap berjalan, tetapi Next.js mencetak peringatan `"next start" does not work with "output: standalone" configuration`; gunakan `node .next/standalone/server.js` di App Service.
+
+`GET /api/health` publik dan ringan (tidak menyentuh basis data), cocok untuk Health check App Service dan smoke test setelah deploy.
+
+**Urutan migrasi** (rencana; sudah dikodekan di `.github/workflows/deploy.yml` tetapi belum pernah dijalankan): pada setiap rilis, `prisma migrate deploy` dijalankan terhadap basis data target lebih dulu, baru artefak aplikasi baru dideploy dan menerima trafik. Migrasi harus kompatibel mundur dengan versi aplikasi yang masih berjalan selama transisi. `prisma migrate dev` hanya untuk lokal.
+
+**Catatan observability**: `lib/logger.ts` menulis satu baris JSON per entri (`level`, `pesan`, `waktu`, `request_id`, konteks) ke stdout/stderr, dan menyamarkan kunci sensitif (`password`, `password_hash`, `cookie`, `authorization`, `teks_input`, `AUTH_SECRET`, dan sejenisnya) serta kredensial dalam URL. `request_id` diambil dari header `x-request-id` masuk bila bentuknya aman, selain itu dibuat UUID baru, dan dikembalikan pada header `x-request-id` respons galat. `instrumentation.ts` baru berupa stub: bila `APPLICATIONINSIGHTS_CONNECTION_STRING` terisi, ia hanya mencatat peringatan bahwa paket `@azure/monitor-opentelemetry` belum terpasang, sehingga telemetri Application Insights belum aktif sampai paket itu ditambahkan.
 
 **CI (sudah berjalan)**
 
-`.github/workflows/ci.yml` jalan pada setiap push dan setiap pull request ke `main`, dengan urutan: `npm ci` → `npm run db:generate` → lint → typecheck → test → build. Prisma Client dibuat ulang di CI karena hasil generate tidak di-commit. CI tidak menyentuh basis data mana pun, jadi tidak memerlukan satu pun secret.
+`.github/workflows/main.yml` jalan pada setiap push dan setiap pull request ke `main`, dengan urutan: `npm ci` → `npm run db:generate` → lint → typecheck → test → build. Prisma Client dibuat ulang di CI karena hasil generate tidak di-commit. CI tidak menyentuh basis data mana pun, jadi tidak memerlukan satu pun secret.
 
 **Deploy (belum dibuat)**
 

@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
+import { denganPenangananGalat, errorResponse } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-function errorResponse(status: number, code: string, message: string) {
-  return NextResponse.json({ error: { code, message } }, { status });
-}
+// Id bukan uuid dibalas 404 seperti "tidak ada"; tanpa ini `findUnique` pada
+// kolom UUID melempar galat Prisma (P2023) dan klien menerima 500.
+const idSchema = z.guid();
 
-export async function DELETE(
+async function handleDelete(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -19,6 +21,10 @@ export async function DELETE(
   }
 
   const { id } = await params;
+
+  if (!idSchema.safeParse(id).success) {
+    return errorResponse(404, "NOT_FOUND", "Jadwal kuliah tidak ditemukan.");
+  }
 
   const existingSchedule = await prisma.classSchedule.findUnique({
     where: { id },
@@ -42,3 +48,5 @@ export async function DELETE(
 
   return new NextResponse(null, { status: 204 });
 }
+
+export const DELETE = denganPenangananGalat(handleDelete);

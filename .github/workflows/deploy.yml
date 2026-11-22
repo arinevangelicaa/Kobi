@@ -1,0 +1,147 @@
+name: Deploy
+
+# Pemicu sengaja hanya manual (workflow_dispatch) supaya tidak ada run merah
+# sebelum resource Azure ada (arsitektur bagian 14). Setelah infra/main.bicep
+# di-apply, OIDC disiapkan, dan satu deploy manual berhasil, ganti blok `on:`
+# menjadi:
+#
+#   on:
+#     push:
+#       branches: [main]
+#     workflow_dispatch:
+#
+# Variabel repo, secret, dan langkah menyiapkan OIDC ada di infra/README.md.
+#
+# STATUS: BELUM DIUJI. Workflow ini belum pernah dijalankan (belum ada
+# subscription Azure). Hanya sintaks YAML yang dicek.
+on:
+  workflow_dispatch:
+
+# Satu deploy pada satu waktu; deploy baru menunggu yang berjalan, tidak
+# membatalkannya, supaya migrasi basis data tidak terputus di tengah jalan.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+# id-token: write dibutuhkan untuk menukar token OIDC GitHub dengan token Azure.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Build, migrate, deploy
+    runs-on: ubuntu-latest
+    # workflow_dispatch bisa dipicu dari branch mana pun, sedangkan job ini
+    # memigrasi basis data produksi dan men-deploy kode. Hanya `main` yang boleh.
+    # Di GitHub, environment `production` juga perlu deployment branch policy
+    # `main` (dan sebaiknya required reviewer); lihat infra/README.md.
+    if: github.ref == 'refs/heads/main'
+    # Environment `production` menentukan subject federated credential
+    # (repo:<owner>/<repo>:environment:production) dan tempat secret
+    # DATABASE_URL disimpan.
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Prisma Client tidak di-commit; harus ada di paket yang di-deploy
+      # (lib/generated/prisma) dan dibutuhkan oleh build.
+      - name: Generate Prisma Client
+        run: npm run db:generate
+
+      # Workflow ini terpisah dari CI (main.yml), jadi `needs` tidak bisa dipakai.
+      # Jalankan gerbang yang sama di sini supaya commit yang belum lolos tidak
+      # sampai ke migrasi dan deploy (arsitektur bagian 14).
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Autentikasi OIDC (federated credential). Tidak ada publish profile dan
+      # tidak ada secret berumur panjang; client-id/tenant-id/subscription-id
+      # bukan rahasia dan disimpan sebagai variabel.
+      - name: Login ke Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # PostgreSQL membuka akses publik hanya untuk layanan Azure dan IP admin,
+      # sedangkan runner GitHub berada di luar itu. Buka satu aturan firewall
+      # sementara untuk IP runner ini, lalu hapus di langkah penutup.
+      - name: Buka firewall PostgreSQL untuk runner
+        id: firewall
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_POSTGRES_SERVER: ${{ vars.AZURE_POSTGRES_SERVER }}
+        run: |
+          RUNNER_IP="$(curl -fsS https://api.ipify.org)"
+          az postgres flexible-server firewall-rule create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_POSTGRES_SERVER" \
+            --rule-name "gha-${GITHUB_RUN_ID}" \
+            --start-ip-address "$RUNNER_IP" \
+            --end-ip-address "$RUNNER_IP" \
+            --output none
+
+      # Migrasi berjalan SEBELUM kode baru dideploy. Migrasi harus kompatibel
+      # mundur dengan versi aplikasi yang sedang berjalan (tambah kolom/tabel
+      # dulu, hapus belakangan). Seed vendor tidak dijalankan di sini; seed
+      # dijalankan manual sekali saja.
+      - name: Prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run db:deploy
+
+      - name: Tutup firewall PostgreSQL untuk runner
+        if: always() && steps.firewall.conclusion != 'skipped'
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_POSTGRES_SERVER: ${{ vars.AZURE_POSTGRES_SERVER }}
+        run: |
+          az postgres flexible-server firewall-rule delete \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_POSTGRES_SERVER" \
+            --rule-name "gha-${GITHUB_RUN_ID}" \
+            --yes || echo "Aturan firewall gha-${GITHUB_RUN_ID} gagal dihapus; hapus manual."
+
+      # Paket standalone (next.config.ts: output "standalone"). Isi
+      # .next/standalone sudah memuat server.js dan node_modules hasil tracing
+      # (termasuk binding native @node-rs/argon2); Next TIDAK menyalin
+      # .next/static dan public/, jadi disalin manual ke dalamnya. Startup
+      # command di App Service: `node server.js` (infra/main.bicep).
+      # Diuji lokal: build, salin static, `node server.js` membalas /api/health 200.
+      - name: Siapkan paket deploy (standalone)
+        run: |
+          # Gagal keras bila output standalone tidak ada; tanpa ini zip hanya
+          # berisi static/public, deploy "berhasil", lalu App Service gagal start.
+          test -f .next/standalone/server.js || { echo "standalone/server.js tidak ada" >&2; exit 1; }
+          mkdir -p .next/standalone/.next
+          cp -r .next/static .next/standalone/.next/static
+          if [ -d public ]; then cp -r public .next/standalone/public; fi
+          (cd .next/standalone && zip -qr ../../release.zip .)
+
+      - name: Deploy ke App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          package: release.zip

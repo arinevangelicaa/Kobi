@@ -1,10 +1,12 @@
 import { z } from "zod";
 
+import { PESAN_NUL, tanpaNul } from "@/lib/validation/umum";
+
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export const scheduleCreateSchema = z
   .object({
-    mata_kuliah: z.string().trim().min(1, "Nama mata kuliah tidak boleh kosong.").max(150),
+    mata_kuliah: z.string().trim().min(1, "Nama mata kuliah tidak boleh kosong.").max(150).refine(tanpaNul, PESAN_NUL),
     hari: z
       .number()
       .int()
@@ -12,7 +14,7 @@ export const scheduleCreateSchema = z
       .max(7, "Hari harus bernilai 1 (Senin) sampai 7 (Minggu)."),
     jam_mulai: z.string().regex(timeRegex, "Format jam mulai harus HH:MM (contoh: 07:30)."),
     jam_selesai: z.string().regex(timeRegex, "Format jam selesai harus HH:MM (contoh: 09:10)."),
-    lokasi_ruang: z.string().trim().max(100).optional().nullable(),
+    lokasi_ruang: z.string().trim().max(100).refine(tanpaNul, PESAN_NUL).optional().nullable(),
   })
   .refine(
     (data) => {

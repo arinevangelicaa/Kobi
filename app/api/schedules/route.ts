@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 
+import { denganPenangananGalat, errorResponse } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dateKeJamStr, jamStrKeDate } from "@/lib/db-time";
 import { scheduleCreateSchema } from "@/lib/validation/schedule";
 
-function errorResponse(status: number, code: string, message: string) {
-  return NextResponse.json({ error: { code, message } }, { status });
-}
-
-export async function GET() {
+async function handleGet() {
   const session = await auth();
   const userId = session?.user?.id;
 
@@ -34,7 +31,7 @@ export async function GET() {
   });
 }
 
-export async function POST(request: Request) {
+async function handlePost(request: Request) {
   const session = await auth();
   const userId = session?.user?.id;
 
@@ -81,3 +78,6 @@ export async function POST(request: Request) {
     { status: 201 },
   );
 }
+
+export const GET = denganPenangananGalat(handleGet);
+export const POST = denganPenangananGalat(handlePost);

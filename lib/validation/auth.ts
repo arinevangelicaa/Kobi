@@ -1,10 +1,17 @@
 import { z } from "zod";
 
+import { PESAN_NUL, tanpaNul } from "@/lib/validation/umum";
+
 /** Dipakai POST /api/auth/register. */
 export const registerSchema = z.object({
   email: z.email("Email tidak valid").trim().toLowerCase(),
   password: z.string().min(8, "Password minimal 8 karakter"),
-  nama: z.string().trim().min(1, "Nama wajib diisi").max(100, "Nama maksimal 100 karakter"),
+  nama: z
+    .string()
+    .trim()
+    .min(1, "Nama wajib diisi")
+    .max(100, "Nama maksimal 100 karakter")
+    .refine(tanpaNul, PESAN_NUL),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

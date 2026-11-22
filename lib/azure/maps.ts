@@ -19,6 +19,8 @@
  *   jarak garis lurus, ditandai sebagai perkiraan kasar").
  */
 
+import { logger } from "@/lib/logger";
+
 export interface Koordinat {
   latitude: number;
   longitude: number;
@@ -130,7 +132,7 @@ export async function hitungJarakWaktuBanyakTujuan(
   }
 
   try {
-    const url = `${AZURE_MAPS_MATRIX_URL}?api-version=${AZURE_MAPS_API_VERSION}&subscription-key=${apiKey}&travelMode=${TRAVEL_MODE}`;
+    const url = `${AZURE_MAPS_MATRIX_URL}?api-version=${AZURE_MAPS_API_VERSION}&subscription-key=${encodeURIComponent(apiKey)}&travelMode=${TRAVEL_MODE}`;
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -151,7 +153,7 @@ export async function hitungJarakWaktuBanyakTujuan(
     });
 
     if (!response.ok) {
-      console.warn(`Azure Maps Matrix API mengembalikan status ${response.status}`);
+      logger.warn("Azure Maps Matrix API mengembalikan status galat", { status: response.status });
       return hasil;
     }
 
@@ -179,7 +181,7 @@ export async function hitungJarakWaktuBanyakTujuan(
     // Timeout, galat jaringan, atau respons tidak terduga. Tidak dilempar
     // ulang -- pemanggil jatuh ke estimasi Haversine untuk vendor yang
     // belum sempat dihitung.
-    console.warn("Azure Maps Matrix API gagal dipanggil:", error);
+    logger.warn("Azure Maps Matrix API gagal dipanggil", { galat: error });
   }
 
   return hasil;
