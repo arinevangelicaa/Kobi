@@ -14,6 +14,7 @@ const menu = [
 
 export default function BottomNavigation() {
   const segment = useSelectedLayoutSegment();
+  const splitBill = segment === "split-bill";
 
   return (
     <nav
@@ -23,6 +24,9 @@ export default function BottomNavigation() {
       <ul className="grid grid-cols-5 gap-1">
         {menu.map(({ href, label, icon, width, height }) => {
           const aktif = segment === href.slice(1);
+          const src = splitBill
+            ? `/assets/split-bill${href}.svg`
+            : `/assets/beranda/${icon}.svg`;
 
           return (
             <li key={href}>
@@ -35,7 +39,7 @@ export default function BottomNavigation() {
                 <span className="relative grid size-9 place-items-center">
                   {aktif && (
                     <Image
-                      src="/assets/beranda/2a11f.svg"
+                      src={splitBill ? "/assets/split-bill/active.svg" : "/assets/beranda/2a11f.svg"}
                       alt=""
                       width={36}
                       height={36}
@@ -43,12 +47,18 @@ export default function BottomNavigation() {
                     />
                   )}
                   <Image
-                    src={`/assets/beranda/${icon}.svg`}
+                    src={src}
                     alt=""
                     width={width}
                     height={height}
-                    className={href === "/beranda" && !aktif ? "relative brightness-0 invert" : "relative"}
-                    style={icon === "ea0b1" ? { width: 31.5003 } : undefined}
+                    className={!splitBill && href === "/beranda" && !aktif ? "relative brightness-0 invert" : "relative"}
+                    style={
+                      splitBill && href === "/catat"
+                        ? { width: 27.6213, height: 27.6213 }
+                        : icon === "ea0b1"
+                          ? { width: 31.5003 }
+                          : undefined
+                    }
                   />
                 </span>
                 {label}
