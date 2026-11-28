@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { denganPenangananGalat, errorResponse } from "@/lib/api";
+import { denganPenangananGalat, errorResponse, requireUser } from "@/lib/api";
 import { hitungJarakWaktuBanyakTujuan } from "@/lib/azure/maps";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dateKeJamStr } from "@/lib/db-time";
 import { logger } from "@/lib/logger";
@@ -17,6 +16,13 @@ import {
 import { recommendationQuerySchema } from "@/lib/validation/recommendation";
 
 async function handlePost(request: Request) {
+  // Spesifikasi (docs/architecture.md bagian 6) mewajibkan login. Diperiksa di
+  // handler, bukan hanya di proxy.ts, supaya endpoint yang memanggil Azure Maps
+  // tidak terbuka bila matcher middleware berubah.
+  const hasil = await requireUser("Anda harus login untuk meminta rekomendasi.");
+  if (!hasil.ok) return hasil.response;
+  const { userId } = hasil;
+
   const body = await request.json().catch(() => null);
   const parsed = recommendationQuerySchema.safeParse(body);
 
@@ -29,17 +35,11 @@ async function handlePost(request: Request) {
   }
 
   const data = parsed.data;
-  const session = await auth();
-  const userId = session?.user?.id;
 
-  // Hitung kesenjangan gizi harian pengguna jika login
+  // Hari = hari kalender WIB, bukan tengah malam zona waktu proses server.
   let kesenjanganGizi: Kesenjangan[] | undefined;
-
-  if (userId) {
-    // Hari = hari kalender WIB, bukan tengah malam zona waktu proses server.
-    const gizi = await dapatkanGiziHarian(userId);
-    if (gizi.target) kesenjanganGizi = gizi.kesenjangan;
-  }
+  const gizi = await dapatkanGiziHarian(userId);
+  if (gizi.target) kesenjanganGizi = gizi.kesenjangan;
 
   // Ambil semua vendor dan menu aktif dari basis data
   const vendorsFromDb = await prisma.vendor.findMany({
@@ -108,8 +108,8 @@ async function handlePost(request: Request) {
     data.jumlah,
   );
 
-  // Simpan riwayat rekomendasi jika pengguna terotentikasi
-  if (userId && rekomendasi.length > 0) {
+  // Simpan riwayat rekomendasi pengguna
+  if (rekomendasi.length > 0) {
     try {
       await prisma.recommendation.createMany({
         data: rekomendasi.map((r) => ({
