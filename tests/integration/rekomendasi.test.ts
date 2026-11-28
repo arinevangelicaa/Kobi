@@ -175,17 +175,24 @@ describe("POST /api/recommendations (Haversine karena Azure Maps tidak dikonfigu
     for (const s of [siang, sore, malam]) expect(s).not.toContain("Warung Jauh");
   });
 
-  it("tanpa sesi tetap berfungsi tetapi tidak menyimpan riwayat", async () => {
+  it("tanpa sesi 401 UNAUTHORIZED: spesifikasi mewajibkan login, tidak ada riwayat dan tidak ada panggilan jaringan", async () => {
     await siapkanKatalog();
+    const fetchTiruan = vi.fn(async () => {
+      throw new Error("tidak boleh memanggil jaringan");
+    });
+    vi.stubGlobal("fetch", fetchTiruan);
 
     const res = await minta({});
 
-    expect(res.status).toBe(200);
-    expect((await res.json()).count).toBe(3);
+    expect(res.status).toBe(401);
+    expect((await res.json()).error.code).toBe("UNAUTHORIZED");
     expect(await prisma.recommendation.count()).toBe(0);
+    expect(fetchTiruan).not.toHaveBeenCalled();
   });
 
   it("400 untuk input tidak valid", async () => {
+    masukSebagai((await buatUser()).id);
+
     const res = await minta({ batas_anggaran: 10 });
 
     expect(res.status).toBe(400);
