@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import AuthHeader from "@/components/auth/authheader";
 import AuthFooter from "@/components/auth/authfooter";
 import CredentialsForm from "@/components/auth/credentials-form";
@@ -36,12 +38,12 @@ export default function LoginPage() {
           />
 
           <div className="flex justify-end">
-            <button
-              type="button"
+            <Link
+              href="/forgot-password"
               className="text-sm text-green hover:underline"
             >
               forgot password?
-            </button>
+            </Link>
           </div>
 
         </CredentialsForm>

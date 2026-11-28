@@ -27,6 +27,8 @@ export const authConfig = {
         nextUrl.pathname.startsWith("/login") ||
         nextUrl.pathname.startsWith("/register") ||
         nextUrl.pathname.startsWith("/signup") ||
+        nextUrl.pathname === "/forgot-password" ||
+        nextUrl.pathname === "/reset-password" ||
         nextUrl.pathname.startsWith("/api/auth") ||
         nextUrl.pathname === "/api/health";
 
