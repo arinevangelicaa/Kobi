@@ -15,6 +15,7 @@ const menu = [
 export default function BottomNavigation() {
   const segment = useSelectedLayoutSegment();
   const splitBill = segment === "split-bill";
+  const homeCream = segment === "catat" || segment === "profil";
 
   return (
     <nav
@@ -26,8 +27,9 @@ export default function BottomNavigation() {
           const aktif = segment === href.slice(1);
           let src = `/assets/beranda/${icon}.svg`;
           if (splitBill) src = `/assets/split-bill${href}.svg`;
-          if (segment === "catat" && href === "/beranda") src = "/assets/catat/home.svg";
+          if (homeCream && href === "/beranda") src = "/assets/catat/home.svg";
           if (aktif && href === "/catat") src = "/assets/catat/active-catat.svg";
+          if (aktif && href === "/profil") src = "/assets/profil/active-profile.svg";
 
           return (
             <li key={href}>
@@ -52,7 +54,7 @@ export default function BottomNavigation() {
                     alt=""
                     width={width}
                     height={height}
-                    className={!splitBill && segment !== "catat" && href === "/beranda" && !aktif ? "relative brightness-0 invert" : "relative"}
+                    className={!splitBill && !homeCream && href === "/beranda" && !aktif ? "relative brightness-0 invert" : "relative"}
                     style={
                       splitBill && href === "/catat"
                         ? { width: 27.6213, height: 27.6213 }
