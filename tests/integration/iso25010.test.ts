@@ -11,7 +11,7 @@
  * sungguhan lewat Route Handler yang asli.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST as registerPost } from "@/app/api/auth/register/route";
 import { POST as checkinPost } from "@/app/api/checkins/route";
@@ -42,6 +42,11 @@ import {
 } from "./helpers";
 
 pakaiDbBersih();
+
+// Spy pada prisma/console dipulihkan walau assertion gagal, supaya tidak bocor ke tes berikutnya.
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const SIANG_WIB = "2026-11-21T12:00:00+07:00";
 const UUID_ACAK = "3f2b8c1e-9d4a-4e6b-8a1c-2d5f7e9b0a13";
@@ -103,15 +108,32 @@ describe("Functional Suitability", () => {
     expect(hasil.map((k) => k.zat)).not.toContain("kalori");
   });
 
-  it("FS-04 appropriateness: ringkasan tren selalu memuat disclaimer non-medis dan narasi tidak mengandung klaim diagnosis", async () => {
+  it("FS-04 appropriateness: tren memuat disclaimer; narasi model yang berisi klaim diagnosis ditolak dan diganti template", async () => {
     const user = await buatUser();
     masukSebagai(user.id);
-    pasangAzureOpenAI();
+    for (const [hari, e, f] of [["2026-11-16", 5, 2], ["2026-11-18", 3, 3], ["2026-11-20", 4, 4]] as const) {
+      const m = await prisma.mealLog.create({
+        data: { user_id: user.id, teks_input: "makan", waktu_makan: new Date(`${hari}T05:00:00Z`) },
+      });
+      await prisma.checkin.create({ data: { user_id: user.id, meal_log_id: m.id, tingkat_energi: e, tingkat_fokus: f } });
+    }
+    // Model "berhalusinasi" klaim medis dan sebab-akibat; harus ditolak.
+    const kalimatBuruk = ["Kekurangan protein menyebabkan Anda lelah.", "Ini gejala anemia dan penyakit serius."];
+    const fetchModel = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ kalimat: kalimatBuruk }) } }] }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchModel);
 
     const badan = await (await trendsGet(get("/api/trends/weekly?minggu=2026-11-18"))).json();
 
+    expect(badan.status).toBe("ok");
+    expect(fetchModel).toHaveBeenCalled(); // jalur model benar-benar dipakai
+    expect(badan.narasi.sumber).toBe("template");
+    expect(badan.narasi.teks).not.toMatch(/diagnos|penyakit|gejala|anemia|menyebabkan/i);
     expect(badan.disclaimer).toMatch(/bukan diagnosis medis/i);
-    expect(badan.narasi.teks).not.toMatch(/mendiagnosis|penyakit|menyebabkan|akibat dari/i);
   });
 });
 
