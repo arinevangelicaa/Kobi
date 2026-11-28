@@ -24,9 +24,10 @@ export default function BottomNavigation() {
       <ul className="grid grid-cols-5 gap-1">
         {menu.map(({ href, label, icon, width, height }) => {
           const aktif = segment === href.slice(1);
-          const src = splitBill
-            ? `/assets/split-bill${href}.svg`
-            : `/assets/beranda/${icon}.svg`;
+          let src = `/assets/beranda/${icon}.svg`;
+          if (splitBill) src = `/assets/split-bill${href}.svg`;
+          if (segment === "catat" && href === "/beranda") src = "/assets/catat/home.svg";
+          if (aktif && href === "/catat") src = "/assets/catat/active-catat.svg";
 
           return (
             <li key={href}>
@@ -51,7 +52,7 @@ export default function BottomNavigation() {
                     alt=""
                     width={width}
                     height={height}
-                    className={!splitBill && href === "/beranda" && !aktif ? "relative brightness-0 invert" : "relative"}
+                    className={!splitBill && segment !== "catat" && href === "/beranda" && !aktif ? "relative brightness-0 invert" : "relative"}
                     style={
                       splitBill && href === "/catat"
                         ? { width: 27.6213, height: 27.6213 }
