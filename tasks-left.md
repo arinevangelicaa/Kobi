@@ -8,11 +8,11 @@ Status: **[SEKARANG]** bisa dikerjakan tanpa Azure (kode, tes dengan mock, IaC, 
 
 | Orang | Peran | Jumlah tugas | Isi utama |
 |---|---|---|---|
-| Adnan | Software, Cloud, AI Engineer | 26 (A 13, C 8, I 5) | Seluruh backend, layout `(app)` dan halaman `/catat`, Azure (IaC, deploy, logging), AI (prompt, narasi, evaluasi) |
+| Adnan | Software, Cloud, AI Engineer | 25 (A 12, C 8, I 5) | Seluruh backend, Azure (IaC, deploy, logging), AI (prompt, narasi, evaluasi) |
 | Arin | Project Manager, Software Engineer | 6 | Rute PATCH rekomendasi, halaman `/rekomendasi` dan `/profil`, dokumentasi + demo, verifikasi data warung |
-| Rida | UI/UX Designer, Software Engineer | 6 | Slicing UI, halaman `/beranda` dan `/tren`, ikon PWA, usability testing |
+| Rida | UI/UX Designer, Software Engineer | 7 | Slicing UI, layout `(app)`, halaman `/catat`, `/beranda` dan `/tren`, ikon PWA, usability testing |
 
-Pembagian frontend: Adnan membuat layout `(app)` dan halaman `/catat` (F1, jalur kritis). Halaman `/beranda` dipindahkan ke Rida (#51) karena UI/UX sedang dikembangkan olehnya. Arin dan Rida memakai layout itu untuk halaman mereka dan memoles tampilan. Backend semua endpoint sudah ada di `main`; bentuk respons ada sebagai JSDoc di berkas rutenya.
+Pembagian frontend: seluruh UI dikerjakan Rida dan Arin karena UI/UX sedang dikembangkan Rida. Layout `(app)` dan komponen `Disclaimer` sudah ada di `main`. Halaman `/beranda` (#51) dan `/catat` (#9, #13, sebelumnya A10 Adnan) dipindahkan ke Rida. Adnan hanya menjaga kontrak API. Backend semua endpoint sudah ada di `main`; bentuk respons ada sebagai JSDoc di berkas rutenya.
 
 ## Aturan kerja
 
@@ -25,7 +25,7 @@ Pembagian frontend: Adnan membuat layout `(app)` dan halaman `/catat` (F1, jalur
 ## Urutan
 
 1. **Fase 0, sekarang:** A1, A2, A3 (fondasi), A4 (meals, jalur kritis, membuka Arin dan Rida), A5, A6, A7. Paralel: C2, C3, C4, C5, C6.
-2. **Fase 1:** A8, I3, A9, A10, I1, I2, A12. Tim: R1-R3, D1-D4, D6.
+2. **Fase 1:** A8, I3, A9, I1, I2, A12. Tim: R1-R3, D1-D4, D6, D7.
 3. **Fase 2, setelah C1:** C8, I4 jalan langsung, tes E2E, D5, R4 (laporan akurasi).
 4. **Fase 3, stretch:** A13, A14, I5.
 
@@ -46,7 +46,6 @@ Dependensi kritis: A4 membuka halaman milik Arin dan Rida. C1 membuka semua peke
 | A7 | `POST /api/checkins` (satu per meal_log, cek kepemilikan) | skema `Checkin` sudah ada | SEKARANG | #13 |
 | A8 | `lib/services/trend-insight.ts` agregasi energi/fokus per rentang protein (di kode) + `GET /api/trends/weekly` | | SEKARANG | #49 |
 | A9 | Rate limit per pengguna untuk endpoint AI, `lib/rate-limit.ts` | arsitektur bagian 12 | SEKARANG | #50 |
-| A10 | `app/(app)/layout.tsx`, komponen `Disclaimer`, halaman `/catat` (form, hasil estimasi + gap, slider check-in fungsional) | Rida memoles styling | SEKARANG | #9, #13 |
 | A12 | Tes integrasi Route Handler vs Postgres uji (service container CI, tanpa secret) | `.github/workflows/main.yml` | SEKARANG | #52 |
 | A13 | PWA ringan: `app/manifest.ts`, service worker aset statis | ikon dari D4 | SEKARANG, prioritas rendah | #53 |
 | A14 | S1 split bill: `lib/services/bill-split.ts` (murni + tes) sekarang; `POST /api/receipts`, `POST /api/receipts/[id]/shares`, halaman `/split-bill` belakangan | | `bill-split` SEKARANG; sisanya STRETCH | #17 |
@@ -83,7 +82,7 @@ Azure belum ada subscription, jadi C2-C7 berupa kode dan IaC yang divalidasi lok
 | ID | Tugas | Status | Issue |
 |---|---|---|---|
 | R1 | `PATCH /api/recommendations/[id]` (status `diterima`/`diabaikan`) + validasi + tes. Pola sama dengan `app/api/schedules/[id]/route.ts` | SEKARANG | #59 |
-| R2 | Halaman `/rekomendasi`: form anggaran dan sela waktu, Geolocation, daftar hasil, tandai diterima, tampilkan `sumber_jarak` | setelah layout `(app)` (#9) dan R1 | #60 |
+| R2 | Halaman `/rekomendasi`: form anggaran dan sela waktu, Geolocation, daftar hasil, tandai diterima, tampilkan `sumber_jarak` | R1 | #60 |
 | R3 | Halaman `/profil` + UI jadwal kuliah (`/api/profile`, `/api/schedules`) | setelah layout `(app)` | #61 |
 | R4 | Dokumentasi, naskah demo end-to-end, update `README.md`, laporan akurasi dari I4 | bertahap; laporan akurasi setelah I4 | #16 |
 | R5 | Verifikasi data warung (`diverifikasi_pada`, jam buka, koordinat) + titik uji sekitar UGM | SEKARANG | #62 |
@@ -93,12 +92,13 @@ Azure belum ada subscription, jadi C2-C7 berupa kode dan IaC yang divalidasi lok
 
 | ID | Tugas | Status | Issue |
 |---|---|---|---|
-| D1 | Selesaikan slicing (login dan signup sudah di branch `539400`): bottom-nav mobile, shell `(app)`, styling `/catat` dan `/beranda` | setelah layout `(app)` (#9) | #24 |
+| D1 | Selesaikan slicing (login dan signup sudah di branch `539400`): bottom-nav mobile, shell `(app)`, styling `/catat` dan `/beranda` | layout `(app)` sudah ada | #24 |
 | D2 | Halaman `/tren` (Server Component, konsumsi `/api/trends/weekly`, Disclaimer) | setelah #49 | #63 |
-| D3 | Styling komponen check-in (fungsi dari A10) | setelah A10 | #13 |
+| D3 | Komponen check-in (slider energi dan fokus) di `/catat`, memakai `POST /api/checkins` | bersama D7 | #13 |
 | D4 | Ikon PWA (192/512, maskable) dan aset `public/` | SEKARANG | #64 |
 | D5 | Usability testing sekitar 5 mahasiswa + iterasi desain; QA manual bagian sendiri | setelah halaman inti jadi | #23, #14 |
-| D6 | Halaman `/beranda` (Server Component, gap hari ini dari `dapatkanGiziHarian` atau `GET /api/nutrition/daily`, dua sampai tiga zat terbesar, Disclaimer). Dipindahkan dari Adnan (sebelumnya A11) | setelah layout `(app)` (#9) | #51 |
+| D6 | Halaman `/beranda` (Server Component, gap hari ini dari `dapatkanGiziHarian` atau `GET /api/nutrition/daily`, dua sampai tiga zat terbesar, Disclaimer). Dipindahkan dari Adnan (sebelumnya A11) | layout `(app)` sudah ada | #51 |
+| D7 | Halaman `/catat` (form klien `POST /api/meals`, hasil estimasi + gap, `estimasi_tertunda` dan reproses lewat `POST /api/meals/[id]/estimate`, riwayat `GET /api/meals?tanggal=`, Disclaimer). Dipindahkan dari Adnan (sebelumnya A10) | layout `(app)` sudah ada | #9, #13 |
 
 ---
 
@@ -106,9 +106,9 @@ Azure belum ada subscription, jadi C2-C7 berupa kode dan IaC yang divalidasi lok
 
 | Issue | Tugas | Pemilik |
 |---|---|---|
-| #9 | A3, A4, A10 | Adnan |
+| #9 | A3, A4 (Adnan), D7 (Rida) | Adnan, Rida |
 | #10 | I2 + sisa wiring | Adnan |
-| #13 | A7, A10 (slider), D3 | Adnan, Rida |
+| #13 | A7 (Adnan), D3 + D7 (Rida) | Adnan, Rida |
 | #14 | QA lintas orang, R6, D5, tes Adnan | Adnan, Arin, Rida |
 | #15 | C3, C4, C5, C8 | Adnan |
 | #16 | R4 | Arin |
